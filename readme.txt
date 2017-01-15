@@ -44,8 +44,13 @@ install mongodb, consolidate, express
 
 see app2.js
 
+Template Library:
 
+Here we will use Nunjucks
 
+Also we include a library called consolidate
+
+consolidate is basically a wrapper for a number of templating engines
 
 
 
