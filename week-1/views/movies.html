@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Movies</title>
+</head>
+
+<body>
+    <h1>Movies</h1>
+    <ul>
+        {% for movie in movies %}
+        <li><a href="http://imdb.com/title/{{ movie.imdb }}">{{movie.title}}, {{movie.name}}</a></li>
+        {% else %}
+        <li>No movies found!!</li>
+        {% endfor %}
+    </ul>
+</body>
+
+</html>
