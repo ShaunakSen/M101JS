@@ -298,6 +298,102 @@ Note _id is explicitly returned
 if we want to omit title we put title:0
 
 
+Comparison Operators:
+
+Look for all movies with runtime > 90
+
+db.movieDetails.find({ "runtime": { $gt: 90 } }, {"title": 1}) //projecting out the title
+
+
+Look for all movies with 120 > runtime > 90
+
+db.movieDetails.find({ "runtime": { $gt: 90, $lt: 120 } })
+
+Look for all movies with 120 >= runtime >= 90
+
+db.movieDetails.find({ "runtime": { $gte: 90, $lte: 120 } })
+
+
+Find Awesome and long Movies
+
+db.movieDetails.find({ "tomato.meter": { $gt: 95 }, "runtime": { $gt: 180 } })
+
+Not equal: use $ne
+
+db.movieDetails.find({ rated: { $ne: "UNRATED" } });
+
+This finds all docs which have rated field other than UNRATED but also returns docs which DO NOT have
+a rated field AT ALL
+
+$in:
+
+db.movieDetails.find({ rated: { $in: ["G", "PG"] } });
+
+Similarly $nin
+
+$exists:
+
+db.movieDetails.find({"director": {$exists: true}})
+
+returns the doc which have director field
+
+$type:
+
+db.moviesScratch.find({ "_id": { $type: "string" } })
+
+
+Logical Operators:
+
+find movies with tomato rating > 95 OR metacritic rating > 88
+
+db.movieDetails.find({ $or: [ { "tomato.meter": {$gt: 95} }, { "metacritic": {$gt: 88} } ] })
+
+
+find movies with tomato rating > 95 AND metacritic rating > 88
+
+db.movieDetails.find({ $and: [ { "tomato.meter": {$gt: 95} }, { "metacritic": {$gt: 88} } ] })
+
+However note:
+
+had we done
+
+db.movieDetails.find({ "tomato.meter": {$gt: 95}, "metacritic": {$gt: 88} }): same thing
+
+So why is there an AND operator?
+
+$and allows us to put multiple constraints on SAME field
+
+db.movieDetails.find({ $and: [{ "metacritic": {$ne: null} }, { "metacritic": {$exists: true} }] })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
