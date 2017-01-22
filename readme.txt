@@ -554,7 +554,22 @@ ___
 
 1. Decade
 2. A and E
-3.
+3. db.movieDetails.find({"countries.1": "Sweden"}).count() ans: 6
+4. db.movieDetails.find({genres: ["Comedy", "Crime"]}).count() ans: 20
+5. db.movieDetails.find({"genres": { $all: ["Comedy", "Crime"] }}) ans: 56
+6. $set
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
