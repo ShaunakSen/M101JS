@@ -365,6 +365,382 @@ $and allows us to put multiple constraints on SAME field
 
 db.movieDetails.find({ $and: [{ "metacritic": {$ne: null} }, { "metacritic": {$exists: true} }] })
 
+$regex:
+
+Find all docs where awards.text field starts with "Won"
+
+db.movieDetails.find({ "awards.text": { $regex: /^Won\s.*/ } })
+\s signifies a space
+
+Array Operators:
+
+$all: Matches array that contains ALL elements specified in the query
+
+db.movieDetails.find({"genres": { $all: ["Comedy", "Animation", "Adventure"] }})
+
+ORDER DOES NOT MATTER
+
+$size: match docs based on length of array
+
+db.movieDetails.find({ "countries": {$size: 1} })
+
+$elemMatch:
+
+Consider addition of one more field
+
+boxOffice: [ { "country": "USA", "revenue": 41.3 },
+             { "country": "Australia", "revenue": 2.9 },
+             { "country": "UK", "revenue": 10.1 },
+             { "country": "Germany", "revenue": 4.3 },
+             { "country": "France", "revenue": 3.5 } ]
+
+
+Now suppose we want to find docs where box office collection from UK is > 15
+
+db.movieDetails.find({ "boxOffice": { "country": "UK", revenue: { $gt: 15 } } })
+
+Here mongo is simply looking for a boxOffice value that satisfies these 2 selectors
+Here this doc will be retrieved
+Here it matches boxOffice as a WHOLE
+
+$elemMatch requires that all criteria be satisfied within a single element of an array field
+
+db.movieDetails.find({ boxOffice: { $elemMatch: { "country": "UK", "revenue": {$gt: 15} } } })
+
+here ONLY those docs will be returned where the criteria is matched WITHIN an element of the boxOffice array
+
+
+UPDATING Docs
+___________________
+
+There are some situations in which updating can result in creating docs
+
+Syntax: 1st specify selector doc..2nd argument is where we specify HOW we would like to update the doc
+
+
+updateOne: updates 1st doc that matches our selector
+
+db.movieDetails.updateOne({ title: "The Martian" }, { $set: { poster: "new-link" } })
+
+$set: replaces or adds field specified
+
+$unset: removes field
+
+$inc:
+
+increments a field value
+
+db.movieDetails.updateOne({ title: "The Martian" }, { $inc: {"tomato.reviews": 3, "tomato.userReviews": 25} } })
+This inc tomato.reviews by 3 and tomato.userReviews by 25
+
+Array Update Operators:
+
+$addToSet: add elem iff it does not exist
+$pop: removes 1st or last elem
+$pullAll: removes all matching values
+$pull: Removes all array elems that match a specified query
+$pushL: add an item
+
+db.movieDetails.updateOne({title: "The Martian"},
+                          {$push: { reviews: { rating: 4.5,
+                                               date: ISODate("2016-01-12T09:00:00Z"),
+                                               reviewer: "Spencer H.",
+                                               text: "The Martian could have been a sad drama film,
+                                               instead it was a hilarious film with a little bit of drama
+                                               added to it. The Martian is what everybody wants from a space
+                                               adventure. Ridley Scott can still make great movies and this
+                                               is one of his best."} } })
+
+
+This pushes a new object inside the reviews field
+
+If the field does not exist it will get created automatically.. Note reviews field will be an array field and
+the object specified will be pushed to it
+
+
+$each:
+
+db.movieDetails.updateOne({title: "The Martian"},
+                          {$push: { reviews:
+                                    { $each: [
+                                        { rating: 0.5,
+                                          date: ISODate("2016-01-12T07:00:00Z"),
+                                          reviewer: "Yabo A.",
+                                          text: "i believe its ranked high due to its slogan 'Bring him Home' there is nothing in the movie, nothing at all ! Story telling for fiction story !"},
+                                        { rating: 5,
+                                          date: ISODate("2016-01-12T09:00:00Z"),
+                                          reviewer: "Kristina Z.",
+                                          text: "This is a masterpiece. The ending is quite different from the book - the movie provides a resolution whilst a book doesn't."},
+                                        { rating: 2.5,
+                                          date: ISODate("2015-10-26T04:00:00Z"),
+                                          reviewer: "Matthew Samuel",
+                                          text: "There have been better movies made about space, and there are elements of the film that are borderline amateur, such as weak dialogue, an uneven tone, and film cliches."},
+                                        { rating: 4.5,
+                                          date: ISODate("2015-12-13T03:00:00Z"),
+                                          reviewer: "Eugene B",
+                                          text: "This novel-adaptation is humorous, intelligent and captivating in all its visual-grandeur. The Martian highlights an impeccable Matt Damon, power-stacked ensemble and Ridley Scott's masterful direction, which is back in full form."},
+                                        { rating: 4.5,
+                                          date: ISODate("2015-10-22T00:00:00Z"),
+                                          reviewer: "Jens S",
+                                          text: "A declaration of love for the potato, science and the indestructible will to survive. While it clearly is the Matt Damon show (and he is excellent), the supporting cast may be among the strongest seen on film in the last 10 years. An engaging, exciting, funny and beautifully filmed adventure thriller no one should miss."},
+
+                                        { rating: 4.5,
+                                          date: ISODate("2016-01-12T09:00:00Z"),
+                                          reviewer: "Spencer H.",
+                                          text: "The Martian could have been a sad drama film, instead it was a hilarious film with a little bit of drama added to it. The Martian is what everybody wants from a space adventure. Ridley Scott can still make great movies and this is one of his best."} ] } } } )
+
+
+if we dont us $each a big array will be pushed to reviews like:
+
+reviews:
+[
+[{}, {}, ....]
+]
+
+But $each adds it like:
+
+reviews:
+[
+{}, {}, {}...
+]
+
+$slice:
+
+We want to keep 5 recent reviews only
+So everytime we get a new review delete oldest one and add new one
+
+db.movieDetails.updateOne({ title: "The Martian" },
+                          {$push: { reviews:
+                                    { $each: [
+                                        { rating: 0.5,
+                                          date: ISODate("2016-01-13T07:00:00Z"),
+                                          reviewer: "Shannon B.",
+                                          text: "Enjoyed watching with my kids!" } ],
+                                      $position: 0,
+                                      $slice: 5 } } } )
+
+
+
+updateMany: updates ALL docs that match
+
+db.movieDetails.updateMany({ rated: null }, { $set: {rated: "UNRATED"} })
+
+OR remove the null rated fields
+
+$unset:
+
+db.movieDetails.updateMany({rated: null}, {$unset: { rated: "" }})
+
+UPSERT: We can create docs using update. if no doc is found matching our filter then we insert new doc
+
+$upsert: true
+
+Suppose we have a detail object in js and we want to add it in db
+But we dont want duplicates and if it does not exist we want to create it
+
+db.movieDetails.updateOne({ "imdb.id": detail.imdb.id }, { $set: detail }, { upsert: true })
+
+ReplaceOne:
+
+suppose we have docs in db
+But we want to replace them with more detailed docs
+the detailed doc is stored in detail object
+
+db.movies.replaceOne({ "imdb": detail.imdb.id }, detail)
+
+it does a whole sale doc replacement
+HW
+___
+
+1. Decade
+2. A and E
+3.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
