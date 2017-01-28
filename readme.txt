@@ -224,6 +224,8 @@ These are called UPSERTS
 
 ________________________________
 
+Week 2
+_______________________________________
 
 _id:
 
@@ -507,7 +509,7 @@ reviews:
 $slice:
 
 We want to keep 5 recent reviews only
-So everytime we get a new review delete oldest one and add new one
+So every time we get a new review delete oldest one and add new one
 
 db.movieDetails.updateOne({ title: "The Martian" },
                           {$push: { reviews:
@@ -560,272 +562,54 @@ ___
 6. $set
 
 
+Week 3
+______________
 
+Nodejs Driver
+_______________
 
+We have a json file from crunchbase
 
+mongorestore works with a binary dump file
+mongoimport on the other hand allows us to import human readable json into a certain db and collection
 
+mongoimport -d crunchbase -c companies companies.json
 
+this command imports 18801 docs
 
+Now we want to use this data set
 
+see week-3/app1.js
 
+var query = {"category_code": "biotech"};
 
+    db.collection('companies').find(query).toArray(function (err, docs) {
 
+        assert.equal(err, null);
+        assert.notEqual(docs.length, 0);
 
+        docs.forEach(function (doc) {
+            console.log(doc.name + " is a " + doc.category_code + " company");
+        });
+    });
 
+db.collection('companies').find(query) returns a cursor
+toArray() retrieved docs
+toArray() caused driver to know that client wants all docs returned in an array
 
 
 
 
+Now we want to use a cursor
+see app2.js
 
+var cursor = db.collection("companies").find(query);
 
+// assign cursor to a variable
 
+here we are not pulling in all the data to memory as we did previously
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+find() does not make a req to db.. It created the cursor only
 
 
 
