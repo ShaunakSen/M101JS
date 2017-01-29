@@ -1,6 +1,13 @@
 var MongoClient = require('mongodb');
 var assert = require('assert');
+var commandLineArgs = require('command-line-args');
 
+var options = commandLineOptions();
+
+console.log(options);
+
+
+// now that we have got correct args connect to db
 
 MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
 
@@ -16,7 +23,7 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
 
     // modify cursor with a field projection
     cursor.project(projection);
-    
+
     // assign cursor to a variable
 
 
@@ -25,7 +32,7 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
     // 1st arg: callback for iterating through the docs
     // 2nd arg: what to do when cursor is exhausted or there is an error
 
-    // here the cursor gets docs in batches not at once 
+    // here the cursor gets docs in batches not at once
     cursor.forEach(
         function (doc) {
             console.log(doc.name + " is a " + doc.category_code + " company");
@@ -36,6 +43,26 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
             db.close();
         }
     );
-
-
 });
+
+function commandLineOptions() {
+    var cli = commandLineArgs([
+        {name: "firstYear", alias: "f", type: Number},
+        {name: "lastYear", alias: "l", type: Number},
+        {name: "employees", alias: "e", type: Number}
+    ]);
+    
+    // type:Number parses the data as Number
+
+    var options = cli.parse();
+
+    if (!(("firstYear" in options) && ("lastYear" in options))) {
+        console.log(cli.getUsage({
+            title: "Usage",
+            description: "First year and last year are required arguments"
+        }));
+        process.exit();
+    }
+
+    return options;
+}
