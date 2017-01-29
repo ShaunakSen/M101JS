@@ -681,6 +681,46 @@ options looks like:
 { firstYear: 2004, lastYear: 2010, employees: 1000 }
 
 
+see app3.js
+
+
+$regex in nodejs driver:
+
+we want to build an app that takes in a reg exp on the command line
+
+see app4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
