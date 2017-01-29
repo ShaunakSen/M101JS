@@ -14,18 +14,14 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
     assert.equal(err, null);
     console.log("Successfully connected to MongoDb");
 
-    var query = {"category_code": "biotech"};
+    var query = queryDocument(options);
 
-    var projection = {"name": 1, "category_code": 1, "_id": 0};
+    var projection = {"_id": 0, "name": 1, "founded_year": 1, "number_of_employees": 1, "crunchbase_url": 1};
 
     // this DOES not fetch docs from db.. it simply returns cursor.. so it is synchronous
-    var cursor = db.collection("companies").find(query);
+    var cursor = db.collection("companies").find(query, projection);
 
-    // modify cursor with a field projection
-    cursor.project(projection);
-
-    // assign cursor to a variable
-
+    var numMatches = 0;
 
     // cursor has forEach method
     // note cursor.forEach is not forEach method on arrays as cursor is not an array
@@ -35,12 +31,14 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
     // here the cursor gets docs in batches not at once
     cursor.forEach(
         function (doc) {
-            console.log(doc.name + " is a " + doc.category_code + " company");
+            numMatches += 1;
             console.log(doc);
         },
         function (err) {
             assert.equal(err, null);
-            db.close();
+            console.log("Our query was: " + JSON.stringify(query));
+            console.log("Matching docs: " + numMatches);
+            return db.close();
         }
     );
 });
@@ -65,4 +63,23 @@ function commandLineOptions() {
     }
 
     return options;
+}
+
+
+function queryDocument(options) {
+
+    // construct query object here from options
+
+    var query = {
+        "founded_year": {
+            "$gte": options.firstYear,
+            "$lte": options.lastYear
+        }
+    };
+
+    if("employees" in options){
+        query.number_of_employees = {"$gte": options.employees};
+    }
+
+    return query;
 }
