@@ -773,7 +773,84 @@ See app6.js
 
 This uses the twitter npm package and twitter stream API to insert tweets one by one about a certain topic
 
-In app7.js
+See app7.js
+
+deleteOne and deleteMany:
+
+In crunchbase db in companies collection:
+
+db.getCollection('companies').find({permalink: "thomson-reuters"}, {name: 1, updated_at:1})
+
+/* 1 */
+{
+    "_id" : ObjectId("52cdef7d4bab8bd6752996d1"),
+    "name" : "Thomson Reuters",
+    "updated_at" : "Tue Dec 24 03:32:45 UTC 2013"
+}
+
+/* 2 */
+{
+    "_id" : ObjectId("52cdef7d4bab8bd675299a5b"),
+    "name" : "Thomson Reuters",
+    "updated_at" : "Tue Dec 24 03:32:45 UTC 2013"
+}
+
+We have duplicate data here
+
+We want to eliminate these
+
+see app8
+
+Initially if we try to run the app we get Error:
+
+AssertionError: { MongoError: Executor error during find command: OperationFailed: Sort operation used more than the maximum 33554432 bytes of R == null
+
+Problem is:
+cursor.sort({"permalink": 1});
+
+we can sort in db side provided we have set an index that mongo can use to do our sort
+boz we dont have such an index set up the system tries to do the sort in memory rather than in the db
+
+
+Soln:
+
+In Mongo Shell
+
+db.companies.createIndex({permalink: 1})
+
+{
+    "createdCollectionAutomatically" : false,
+    "numIndexesBefore" : 1,
+    "numIndexesAfter" : 2,
+    "ok" : 1.0
+}
+
+Now we do not get this problem and when we run the app above 900 docs are returned
+
+Repetitions:907
+
+We use deleteOne() to delete them one by one
+
+We run app8 will delete code uncommented
+
+After it runs all get deleted
+
+So now if we run again
+
+Repeated: 0
+
+Problem: there were 907 repetition.. calling deleteOne() on every single one of them requires 907
+calls to db. this is very inefficient
+
+Better approach
+See app9:
+
+
+
+
+
+
+
 
 
 

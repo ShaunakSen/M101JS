@@ -22,7 +22,7 @@ MongoClient.connect("mongodb://localhost:27017/social_feed", function (err, db) 
     assert.equal(err, null);
     console.log("Successfully connected to mongoDB :)");
 
-    var screenNames = ["Marvel", "DCComics", "TheRealStanLee"];
+    var screenNames = ["Marvel", "DCComics", "shaunak1105"];
 
     var done = 0;
 

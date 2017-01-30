@@ -16,7 +16,7 @@ MongoClient.connect('mongodb://localhost:27017/social', function(err, db) {
     assert.equal(null, err);
     console.log("Successfully connected to MongoDB.");
 
-    twitterClient.stream('statuses/filter', {track: "trump"}, function(stream) {
+    twitterClient.stream('statuses/filter', {track: "royal rumble"}, function(stream) {
         stream.on('data', function(status) {
             console.log(status.text);
             db.collection("statuses").insertOne(status, function(err, res) {
