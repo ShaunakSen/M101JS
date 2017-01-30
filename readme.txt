@@ -713,41 +713,67 @@ each company has an offices field which is an array of objects
 
 We want to kno which compnaies have offices in which countries
 
+See app3.js
 
 
+Sort, Skip, Limit:
+
+see app5.js
+
+We might want to limit no of docs returned (LIMIT)
+We may skip 1st 10 results (SKIP)
+
+SORT:
+
+sort, limit and skip are cursor methods that we can chain on to the cursor as we did with cursor.project()
+
+cursor.sort({founded_year: 1})
+
+1: ASC
+-1: DESC
+
+Note .sort() simply adds features or properties to cursor. It ahs not fetched any docs YET
+it fetches docs when forEach method is called
 
 
+When we want to sort on multiple fields we need to use an array not an object as order is imp here
+cursor.sort([ ["founded_year", 1], ["number_of_employees", -1] ])
+
+SKIP AND LIMIT:
+
+Skip and Limit are also cursor methods
+
+$ node app5.js -f 2005 -l 2010 -e 500 --limit 10 --skip 0
 
 
+skip is basically like the offset
+
+Here 1st 10 results are shown
+
+for next 10:
+
+$ node app5.js -f 2005 -l 2010 -e 500 --limit 10 --skip 10
+
+Also note:
+
+We have
+
+cursor.sort([["founded_year", 1], ["number_of_employees", -1]]);
+cursor.skip(options.skip);
+cursor.limit(options.limit);
+
+The order in which we apply sort, skip and limit DOES NOT MATTER
+
+Mongo always does SORT, then SKIP and then LIMIT
 
 
+Writing Data: InsertOne and InsertMany:
 
+See app6.js
 
+This uses the twitter npm package and twitter stream API to insert tweets one by one about a certain topic
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+In app7.js
 
 
 
