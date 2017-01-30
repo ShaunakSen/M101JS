@@ -80,7 +80,7 @@ function queryDocument(options) {
         query.overview = {"$regex": options.overview, "$options": "i"};
     }
     if("milestones" in options){
-        // $options:i signifies case insensitive match
+        // need to use array like syntax here
         query["milestones.source_description"] = {"$regex": options.milestones, "$options": "i"};
     }
 

@@ -16,7 +16,7 @@ MongoClient.connect("mongodb://localhost:27017/crunchbase", function (err, db) {
 
     var query = queryDocument(options);
 
-    var projection = {"_id": 0, "name": 1, "founded_year": 1, "number_of_employees": 1, "crunchbase_url": 1};
+    var projection = projectionDocument(options);
 
     // this DOES not fetch docs from db.. it simply returns cursor.. so it is synchronous
     var cursor = db.collection("companies").find(query, projection);
@@ -47,9 +47,11 @@ function commandLineOptions() {
     var cli = commandLineArgs([
         {name: "firstYear", alias: "f", type: Number},
         {name: "lastYear", alias: "l", type: Number},
-        {name: "employees", alias: "e", type: Number}
+        {name: "employees", alias: "e", type: Number},
+        {name: "ipo", alias: "i", type: String},
+        {name: "country", alias: "c", type: String},
     ]);
-    
+
     // type:Number parses the data as Number
 
     var options = cli.parse();
@@ -70,6 +72,8 @@ function queryDocument(options) {
 
     // construct query object here from options
 
+    // ======= 3 ways of assigning values to js objects ========
+
     var query = {
         "founded_year": {
             "$gte": options.firstYear,
@@ -77,9 +81,47 @@ function queryDocument(options) {
         }
     };
 
-    if("employees" in options){
+    if ("employees" in options) {
         query.number_of_employees = {"$gte": options.employees};
     }
 
+    // ipo args
+    if ("ipo" in options) {
+        if (options.ipo == "yes") {
+
+            // fetch docs where ipo exists and not null
+
+            query["ipo.valuation_amount"] = {"$exists": true, "$ne": null};
+        } else if (options.ipo == "no") {
+
+            // fetch docs of companies where ipo does not exists or are set to null
+            query["ipo.valuation_amount"] = null;
+        }
+    }
+
+    if ("country" in options) {
+        query["offices.country_code"] = options.country;
+    }
+
+
     return query;
 }
+
+
+function projectionDocument(options) {
+    var projection = {"_id": 0, "name": 1, "founded_year": 1, "crunchbase_url": 1};
+
+    if ("employees" in options) {
+        projection.number_of_employees = 1;
+    }
+    if ("ipo" in options) {
+        projection["ipo.valuation_amount"] = 1;
+    }
+    
+    if ("country" in options){
+        projection["offices.country_code"] = 1;
+    }
+
+    return projection;
+}
+

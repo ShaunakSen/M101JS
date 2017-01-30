@@ -691,6 +691,42 @@ we want to build an app that takes in a reg exp on the command line
 see app4
 
 
+Dot notation in nodejs driver:
+
+We want to add in args to query ipo field
+
+We modify app3.js here
+
+
+// ipo args
+if("ipo" in options){
+    if(options.ipo == "yes"){
+        query["ipo.valuation_amount"] = {"$exists": true, "$ne": null};
+    } else if(options.ipo == "no"){
+        query["ipo.valuation_amount"] = null;
+    }
+}
+
+Dot notation on embedded docs in arrays:
+
+each company has an offices field which is an array of objects
+
+We want to kno which compnaies have offices in which countries
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
