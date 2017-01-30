@@ -845,7 +845,12 @@ calls to db. this is very inefficient
 Better approach
 See app9:
 
+hw:
 
+1: a
+2: last
+3. 169
+4. 48
 
 
 
