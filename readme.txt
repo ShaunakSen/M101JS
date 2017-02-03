@@ -853,6 +853,164 @@ hw:
 4. 48
 
 
+Week-4
+_____________________________________
+
+
+MongoDB Schema Design:
+
+In relational db schemas its best to follow 3NF form
+we can follow the same form in mongo as well
+
+But in Mongo it is very useful to follow Application-driven Schema
+
+Mongo Features:
+
+-> Rich documents: Docs can store an array of docs as well as other doc
+-> Pre Join/ Embed data: Mongo DOES NOT support JOIN in the kernel itself. If we wnat to join we will
+have to do it on the app logic
+-> Joins are costly. So it isbetter to embed related data
+-> No constraints: No foreign key concept.
+-> Atomic Operations
+-> No declared schema
+
+The MOST imp factor in designing application schema is to MATCH data patterns of the app
+
+Relational Normalization:
+
+Posts table of a Blog Project:
+
+Post_id     title       Body        Author      Author_email
+1           abc                       mini       mini@pook.com
+2           cde                       mini       mini@pook.com
+3
+
+This is not 3NF .. this is bcoz if we hv to update email of mini we have to update in both places
+If we update in id=1 and not in id=2 data will be inconsistent
+
+3NF: not 3NF as author_email is non key attr but it tells us something about a field(Author) which is not key attr
+
+
+Goals of Normalization:
+
+-> free db of modification anomalies
+
+-> Minimize redesign when extending db: mongo is very flexible so this is achieved. We can add keys and attr to docs
+without changing existing docs
+
+-> Avoid bias towards any particular access pattern: Mongo DOES not follow this. When u are not biased towards
+a specific access pattern u are equally bad at all of them. We want to Prune up db for app
+
+
+Modelling a Blog in MogoDB:
+
+
+Posts collection
+
+{
+    _id: "",
+    title: "",
+    author: "", <- username or email or both
+    content: "",
+    comments: [
+        {author: "", content: "", date: Date()},
+        {author: "", content: "", date: Date()}
+    ]
+    tags: ["", "", ""],
+    date: date()
+}
+
+comments is embedded here
+
+Authors collection
+
+{
+    _id: "",
+    name: "",
+    email: "",
+    password: ""
+}
+
+Living without constraints:
+
+Lets imagine mongo collection in relational form
+
+Posts
+
+{
+    _id: 1,
+    title: "",
+    author: "",
+    content: "",
+    date: date()
+}
+
+Comments
+
+{
+    _id: "",
+    post_id: 1,
+    author: "",
+    content: "",
+    date: date()
+}
+
+Tags
+
+{
+    _id: "",
+    post_id: 1,
+    tag: "",
+    date: date()
+}
+
+Now post_id in comments collection needs to be a foreign key in relational scheme
+Mongo does not support foreign key. So soln is embedding docs
+
+
+Posts collection
+
+{
+    _id: "",
+    title: "",
+    author: "", <- username or email or both
+    content: "",
+    comments: [
+        {author: "", content: "", date: Date()},
+        {author: "", content: "", date: Date()}
+    ]
+    tags: ["", "", ""],
+    date: date()
+}
+
+
+Since comments is embedded into a post we dont need foreign key anyway
+We cant have a comment which has no post
+
+Same for tags
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
