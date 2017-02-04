@@ -989,6 +989,254 @@ We cant have a comment which has no post
 
 Same for tags
 
+Living without transactions:
+
+Transactions are Atomicity, Consistency, Isolation and Durability (ACID)
+
+Mongo does not support Transactions but it supports ATOMIC ops
+
+This means that when u work on a doc either all the changes will be reflected or none of them will
+
+Using this we can achieve the same features that transactions provide most of the times
+
+we can do this in 3 ways:
+1. Restructure: we can restructure our schema to use a single doc and use atomic features that mongo provides
+2. Implement locking in sw such as critical section or semaphores. this is how the real apps are made. For eg if
+a bank needs to transfer money to another they do not have the same realational db that they can simply open a
+transaction
+3. Tolerate: In modern web apps it is used. For eg in friends feed its not necessary that ALL the friends should see
+the updates simultaneously. So a bit of inconsistency is tolerated
+
+One to One Relations:
+
+each item corresponds to exactly one item
+eg: employee-resume
+Building-floor plan
+patient-medical history
+
+employee-resume schema 1:
+
+employee
+{
+    _id: 20,
+    name: "mini",
+    resume: 30
+}
+
+resume
+{
+    _id: 30,
+    jobs: [],
+    education:[],
+    employee:20
+}
+
+Note: employee:20 is NOT a foreign key. yes it acts like one here but we have no WAY to guarantee as mongo
+does not support this
+
+employee-resume schema 2:
+
+employee
+{
+    _id: 20,
+    name: "mini",
+    resume:{
+               _id: 30,
+               jobs: [],
+               education:[]
+           }
+}
+
+
+When to chose schema 1 and when to chose 2?
+-> frequency of access: employee info is accessed very often but access of resume info is very rare.
+So 1st scheme is better
+
+-> size of items: for eg if we are never going to update the employee doc but we are gonna update
+resume part then 1 is better. if resume>16mb we cant embed it
+
+-> Atomicity of data: If we can tolerate no inconsistency then we should put both in same doc
+
+
+One to many relations:
+
+eg: city-person
+
+sa NYC ahs 8 mil people
+
+city{
+    name:
+    area:
+    people: []
+}
+
+This wont work as people will be too large
+
+people{
+    name:
+    city: {
+        name: "NY",
+        area:
+    },
+    addr: ""
+}
+
+
+the problem with this design is that since there are multiple people living in NYC
+the city {} data is duplicated. so i have to keep city data updated across all 8 mil people
+Prone to inconsistencies
+
+Best soln: TRUE LINKING
+
+people{
+    name: "pooki",
+    city: "NYC"
+}
+
+city{
+    _id: "NYC"
+}
+
+But what if instead of one to many the relationship is one to few?
+
+eg: blog post-comments
+
+here the comments are not so huge in no
+
+here we can embed i.e have an array of comments in each post
+
+
+Many to many relations:
+
+books-authors
+students-teachers
+
+more often this tends to be few-few only
+so we can use rich dc structure of mongo
+
+Book-author schema:
+
+although there may be a large no of books and a large no of author, each book only ahs few authors
+and each author has only a few books
+
+Schema design 1:
+
+books
+{
+    _id:12,
+    title: "Harry potter and the chamber of secrets",
+    authors: [27]
+}
+
+authors
+{
+    _id: 27,
+    name: "JK Rowling",
+    books: [12, 22]
+}
+
+here books and authors are linked in both directions
+
+Schema design 2:
+
+we can simply embed
+
+authors
+{
+    _id: 27,
+    name: "JK Rowling",
+    books: [
+        {
+            _id:12,
+            title: "Harry potter and the chamber of secrets",
+        },
+        {
+            ...
+        }
+    ]
+}
+
+prob: book may be duplicated since a book may have many authors
+
+
+Students-teachers
+
+suppose we embed student inside teacher doc
+this requires that for a student to exist a teacher MUST exist
+so if a student is just enrolled he/she might not have any teacher
+so this is a problem
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
