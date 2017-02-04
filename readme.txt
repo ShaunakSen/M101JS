@@ -867,9 +867,9 @@ But in Mongo it is very useful to follow Application-driven Schema
 Mongo Features:
 
 -> Rich documents: Docs can store an array of docs as well as other doc
--> Pre Join/ Embed data: Mongo DOES NOT support JOIN in the kernel itself. If we wnat to join we will
+-> Pre Join/ Embed data: Mongo DOES NOT support JOIN in the kernel itself. If we want to join we will
 have to do it on the app logic
--> Joins are costly. So it isbetter to embed related data
+-> Joins are costly. So it is better to embed related data
 -> No constraints: No foreign key concept.
 -> Atomic Operations
 -> No declared schema
@@ -895,8 +895,8 @@ Goals of Normalization:
 
 -> free db of modification anomalies
 
--> Minimize redesign when extending db: mongo is very flexible so this is achieved. We can add keys and attr to docs
-without changing existing docs
+-> Minimize redesign when extending db: mongo is very flexible so this is achieved. We can add keys
+and attr to docs without changing existing docs
 
 -> Avoid bias towards any particular access pattern: Mongo DOES not follow this. When u are not biased towards
 a specific access pattern u are equally bad at all of them. We want to Prune up db for app
@@ -1002,7 +1002,7 @@ Using this we can achieve the same features that transactions provide most of th
 we can do this in 3 ways:
 1. Restructure: we can restructure our schema to use a single doc and use atomic features that mongo provides
 2. Implement locking in sw such as critical section or semaphores. this is how the real apps are made. For eg if
-a bank needs to transfer money to another they do not have the same realational db that they can simply open a
+a bank needs to transfer money to another they do not have the same relational db that they can simply open a
 transaction
 3. Tolerate: In modern web apps it is used. For eg in friends feed its not necessary that ALL the friends should see
 the updates simultaneously. So a bit of inconsistency is tolerated
@@ -1062,7 +1062,7 @@ One to many relations:
 
 eg: city-person
 
-sa NYC ahs 8 mil people
+say NYC has 8 mil people
 
 city{
     name:
@@ -1116,7 +1116,7 @@ so we can use rich dc structure of mongo
 
 Book-author schema:
 
-although there may be a large no of books and a large no of author, each book only ahs few authors
+although there may be a large no of books and a large no of author, each book only has few authors
 and each author has only a few books
 
 Schema design 1:
@@ -1264,144 +1264,66 @@ we want to find students who had AKB and DM as their teachers
 db.getCollection('students').find({"teachers": {$all: [0,1]}})
 
 
-But before this we should add multi key index on the teachers key of students collection
+But before this we should add multi key index on the teachers key of students collection as we are searching
+by teachers so we should add index to make it more efficient
 
 db.students.ensureIndex({"teachers":1})
 
 db.getCollection('students').find({"teachers": {$all: [0,1]}}).explain() to verify this
 
 
+Benefits of Embedding data:
 
+-> Improved Read performance: Computers use spinning disks. They have very high latency i.e they
+take very long to get to 1st byte(> 1ms). But once they get to 1st byte each addnl byte comes quickly(high bw)
+So embedded data is faster
 
+-> One round trip to db: on relational tables multiple calls to db are needed to read data. Same for
+writing data
 
+Tress:
 
+How to represent a tree inside a db?
 
+ecommerce categories: Men > Outdoors > Sports > Cricket
 
+product{
+_id: 3
+name:"SS Cricket bat",
+category: 7
+}
 
+categories{
+_id: 7
+name: Cricket,
+parent: 5
+}
 
+parent: parent category
 
+But prob is to find all parents of the category we have to iteratively query all the parents
 
+alternative: ancestors: [5, 2, 1 ]
 
 
+Given the following typical document for a e-commerce category hierarchy collection called categories
+categories
+{
+  _id: 34,
+  name: "Snorkeling",
+  parent_id: 12,
+  ancestors: [12, 35, 90]
+}
 
+Which query will find all descendants of the snorkeling category?
 
+--> db.categories.find({ancestors: 34})
 
+hw
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+4.1: 1 & 4
+4.2: 2
+4.3: E
 
 
 
