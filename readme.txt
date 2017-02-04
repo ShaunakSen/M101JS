@@ -1166,6 +1166,130 @@ this requires that for a student to exist a teacher MUST exist
 so if a student is just enrolled he/she might not have any teacher
 so this is a problem
 
+Multi key Indexes:
+
+Say we have students-teachers schema
+
+students
+{
+    _id: 0,
+    name: "pooki",
+    teachers: [1,7,10,23]
+}
+
+teachers{
+    _id: 7,
+    name: "shona"
+}
+
+
+Queries: find all teachers that a particular student has
+OR find all students who have had a particular teacher
+
+1 is easy
+
+2:
+
+students:
+
+/* 1 */
+{
+    "_id" : 0,
+    "name" : "mini",
+    "teachers" : [
+        0,
+        1,
+        2,
+        3
+    ]
+}
+
+/* 2 */
+{
+    "_id" : 1,
+    "name" : "shona",
+    "teachers" : [
+        0,
+        1
+    ]
+}
+
+/* 3 */
+{
+    "_id" : 2,
+    "name" : "saurav",
+    "teachers" : [
+        1,
+        2
+    ]
+}
+
+/* 4 */
+{
+    "_id" : 3,
+    "name" : "paddy",
+    "teachers" : [
+        3
+    ]
+}
+
+teachers:
+
+/* 1 */
+{
+    "_id" : 0,
+    "name" : "AKB"
+}
+
+/* 2 */
+{
+    "_id" : 1,
+    "name" : "DM"
+}
+
+/* 3 */
+{
+    "_id" : 2,
+    "name" : "AKD"
+}
+
+/* 4 */
+{
+    "_id" : 3,
+    "name" : "JH"
+}
+
+we want to find students who had AKB and DM as their teachers
+
+db.getCollection('students').find({"teachers": {$all: [0,1]}})
+
+
+But before this we should add multi key index on the teachers key of students collection
+
+db.students.ensureIndex({"teachers":1})
+
+db.getCollection('students').find({"teachers": {$all: [0,1]}}).explain() to verify this
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
