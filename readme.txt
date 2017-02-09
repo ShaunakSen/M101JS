@@ -1426,6 +1426,232 @@ mongod -dbpath WT --storageEngine wiredTiger
 
 WT cant open files created by MMAP
 
+Indexes:
+
+Say we have a collection of a bunch of docs
+docs:
+{
+    name: "",
+    hair_color: "",
+    DOB: ""
+}
+
+These docs may be on disk in arbitrary order
+
+Say we want to find all docs with name Mini
+
+We need to scan EVERY doc in collection there could be millions of docs
+This collection scan is DEATH to performance
+
+So we need Index
+
+Say we have an index on name
+
+It is like an ordered list of things
+
+Andrew|Barry|Charlie|......    |Zoey
+
+Each index has pointer to location of doc on disk
+
+So it is very fast to search
+Say we have to search for Charlie..we can do this using binary search in logn time
+
+This index is structured as Btree
+
+say we want to query on name and hair_color
+
+Then index: (name, hair_color)
+
+Andrew,Black|Andrew,Red|Barry,Brown|Barry,Red|......    |Zoey,Red
+
+Find all Barrys' with certain hair color -> binary search
+
+But if we want to find all people with red hair - Problem
+hair_color is not stored in specific order. So we cant apply binary search here
+
+Thus, if our index is (name, hair_color, DOB)
+
+Name -> OK
+Name, hair_color -> Ok
+Name, hair_color, DOB ->  OK
+
+But not hair_color alone or DOB alone
+
+In general, if our index is (a,b,c)
+
+a -> Ok
+a,b -> Ok
+a,b,c -> Ok
+c -> NO
+c,b -> NO
+a,c -> to some extent
+
+Prob with index:
+
+Index slows down the writes
+But Reads are much faster
+So, if our app only involves writing, we do not need index
+
+Strategy: When u insert a very large amt of data, dont use index.. after all data is inserted add the index
+
+Also we should not add index on all keys as then writes will be very slow and lot of disk space will be used
+
+if we have 10 mil docs and dont use index then each search operation will scan 10 mil docs
+
+Creating Indices:
+
+
+Let us imagine there is a huge db full of student data as
+{
+    student_id:"",
+    scores: [
+        {},
+        {}
+    ]
+    class_id: ""
+}
+
+Actually here there are 1 mil students each of whom have taken 10 classes
+
+So there are 10 mil docs
+
+There are no indices
+
+db.students.find({student_id: 5})
+
+takes few secs on a very fast computer
+
+db.students.explain().find({student_id: 5})
+
+it does collection scan and looks at all docs
+
+db.students.findOne({student_id: 5})
+
+This will be faster assuming that docs are arranged more or less in same order as student_id
+So once it finds the doc it can quit
+
+Add index:
+
+db.students.createIndex({student_id: 1})
+
+We want the doc to be indexed on student_id ascending
+
+The process of creating the index is slow (around 23s)
+
+this is bcoz we have to scan entire collection, create new data structures and write them all to disk
+
+db.students.find({student_id: 5})
+
+very fast!
+
+db.students.explain().find({student_id: 5})
+db.students.explain(true).find({student_id: 5})
+
+here it will tell us the no of docs it looked at
+here it will be around 10
+
+so that is awesome!!
+
+compound index: db.students.createIndex({student_id: 1, class_id: -1})
+creates an index on student_id,class_id where student_id part is ascending and class_id part is descending
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
