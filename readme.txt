@@ -1325,6 +1325,158 @@ hw
 4.2: 2
 4.3: E
 
+Week - 5
+______________________________________________________________
+
+Storage Engines:
+
+Mongo 3.0 onwards offers pluggable storage engines
+
+Storage engine: It is the interface bw the persistence storage(disk) and db itself(mongodb server)
+mongodb server talks to disk through a storage engine
+
+say i write a python app using pyMongo driver which talks to db server using wire protocol
+
+when CRUD is needed it will talk to storage engine which will talk to disk
+
+All the diff structures that hold the docs, indexes and meta data are written to disk by the storage engine
+
+Storage engine might use memory to optimize this process
+
+As disk is slow SE has control of memory and it can decide what to persist to disk and when
+
+Python code -------------> MongoDB Server ------------> SE  <--->(memory)    -----------> Disk
+
+Mongo offers Pluggable SE architecture
+
+The engine determines the performance characteristics
+
+MMAP & WiredTiger(default in 3.2+)
+
+Say we have a bunch of MongoDB servers running in a cluster. SE DOES NOT handle communication bw those servers
+i.e if we have diff servers, data might get transferred from server to server to provide fault tolerance
+This is not affected by SE
+
+It DOES NOT affect API that db presents to thr programmer
+
+So it is same for MMAP and WiredTiger
+
+But performance differs
+
+
+MMAPv1:
+
+Original SE for Mongo
+
+Uses Mmap system call in order to implement SE
+
+Just do man mmap to see info about this
+
+How does this works?
+
+Mongo puts its docs inside files
+To do that it allocates a large say 100gb file on disk
+
+If mongo calls mmap() system call it can map 100gb file into 100gb virtual memory(if comp is 64 bit)
+
+This 100gb VM is page-sized
+page size: either 4k or 16k
+
+Os decides which pages are going to be in memory and which have to be fetched from disk
+
+When we read doc, if it hits a page that is in memory:Ok
+else fetch it from disk
+
+1. Collection level concurrency: Each collection is its own file
+So if 2 diff ops access the same collections nd if they are write ops they need to wait
+
+2. In-place updates: we want to update a doc in-place without having to move it. For this we use Power of 2 sizes
+allocation
+
+3. Power of 2 sizes allocation: if we try to create a 3 byte doc we get 4 bytes 3byte doc: 4 bytes.. 7:8, 19:32..
+So we can grow the doc a bit as we have some addnl space
+
+Note: Mongo cant control what is there in memory and in disk. OS does that
+
+
+Wired Tiger:
+
+for many cases it is faster
+
+1. Doc level Concurrency: It is not doc level locking as it is a lock-free implementation.It assumes 2 writes are NOT
+going to be to same doc and if they are, one of the writes will occur again. This doc level concurrency is very good
+vs collection level as in MMAP
+
+2. Compression of data and indexes
+WT itself manages the memory that is used to access a file
+file is brought in pages of various sizes
+WT decides which blocks to keep in memory and which in disk
+
+So before data is written to disk WT compresses the data. This saves a lot of space
+Keys are often repeated in most docs. So lot of scope for compression
+
+3. No in-place updates: It uses append only nature of storing data.
+When we update doc, WT marks that the space where the doc was in memory is no longer used and ii
+allocates space for the doc somewhere else
+This can result in writing a lot of data say, if u have a large doc and u update only one item, WT has to write that entire
+doc again. But this append only feature that helps it in doc level concurrency
+
+killall mongod
+mongod -dbpath WT --storageEngine wiredTiger
+
+WT cant open files created by MMAP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
