@@ -1556,6 +1556,278 @@ compound index: db.students.createIndex({student_id: 1, class_id: -1})
 creates an index on student_id,class_id where student_id part is ascending and class_id part is descending
 
 
+Discovering and deleting Indexes:
+
+db.students.getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "school.students"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "student_id" : 1.0
+        },
+        "name" : "student_id_1",
+        "ns" : "school.students"
+    }
+]
+
+1st index is on _id
+
+we cant delete this
+
+Also there is index on student_id
+
+db.students.dropIndex({student_id: 1})
+
+
+Multi key Indexes:
+
+We can create indexes on arrays as well
+
+{
+name: "pooki",
+tags: ["dress", "chocolates", "shona"],
+location: ["kol", "dgp", "jhs"],
+color: "green"
+}
+
+we can create an index on tags
+
+it will create an index point on "dress", "chocolates", and "shona"
+
+(tags, color): we can create index on this also
+
+it will create an index point on "dress,green", "chocolates,green", and "shona,green"
+
+Restriction: we cant have 2 items if a compound index where both are arrays
+
+(tags, location) -> wont work
+
+This is bcoz too many index points will have to be created in this place
+
+db.getCollection('foo').insert({a:1, b:2})
+
+db.getCollection('foo').createIndex({a:1,b:1})
+
+At this stage the index on (a,b) is not multi-key
+
+db.foo.insert({a:3, b:[3,5,7]})
+Now it becomes multi-key
+
+db.getCollection('foo').find({}).explain()
+
+"indexName" : "a_1_b_1",
+"isMultiKey" : true,
+
+
+db.getCollection('foo').getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "test.foo"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "a" : 1.0,
+            "b" : 1.0
+        },
+        "name" : "a_1_b_1",
+        "ns" : "test.foo"
+    }
+]
+
+let us insert both arrays
+
+db.getCollection('foo').insert({a:[3,4,5], b:[7,8,9]})
+
+
+cannot index parallel arrays [b] [a]
+
+db.getCollection('foo').insert({a:[3,4,5], b:4})
+
+ok
+
+So we cant have multiple values of compound index as arrays
+any one may be an array
+
+Dot Notation and Multi key:
+
+We can use dot notation to add index to sub doc
+
+A doc from students collection:
+
+{
+    "_id" : ObjectId("589caba3869beedca3a74e9a"),
+    "student_id" : 0.0,
+    "scores" : [
+        {
+            "type" : "exam",
+            "score" : 8.04217046318541
+        },
+        {
+            "type" : "quiz",
+            "score" : 24.8244121169841
+        },
+        {
+            "type" : "homework",
+            "score" : 0.45400469915079
+        },
+        {
+            "type" : "homework",
+            "score" : 11.656562423626
+        }
+    ],
+    "class_id" : 346.0
+}
+
+db.students.createIndex({"scores.score": 1})
+
+takes around 15-20 mins
+
+db.students.getIndexes()
+
+[
+    {
+        "_id" : 1
+    },
+    {
+        "scores.score" : 1.0
+    }
+]
+
+see that there is index on scores.score which is our multi key index
+
+db.students.find({'scores.score': {$gt: 99}}).explain()
+
+"indexName" : "scores.score_1",
+"isMultiKey" : true,
+"indexBounds" : {
+                    "scores.score" : [
+                        "(99.0, inf.0]"
+                    ]
+                }
+
+here the Winning plan includes the scores.score index
+and it looked for 99<scores.score<inf
+
+Now we want to find students who have an exam score > 99.8:
+
+db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}})
+
+6547 records are returned
+
+db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}}).explain()
+
+Look at the winning plan from bottom-up!
+
+first it searches for scores.score bw 99.8 and inf
+
+in second stage:
+"$elemMatch" : {
+                "$and" : [
+                    {
+                        "score" : {
+                            "$gt" : 99.8
+                        }
+                    },
+                    {
+                        "type" : {
+                            "$eq" : "exam"
+                        }
+                    }
+                ]
+            }
+
+
+here we are doing an elemMatch for both conditions ie score > 99.8 AND type: exam
+
+db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}}).explain()
+
+Now we will get the execution stats also!!
+
+"totalDocsExamined" : 26188
+
+This is exactly no of docs with score.score > 99.8
+
+db.students.find({'scores.score': {$gt: 99.8}}).count()
+
+26188
+
+So basically  in db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}})
+we looked for scores.score>99.8
+and among those docs returned those in which score.score>99.8 and type is exam
+
+Wrong query to find students who have an exam score > 99.8:
+
+db.students.find({ '$and': [ {'scores.type': 'exam', 'scores.score': { $gt: 99.8 }} ] })
+
+here scores > 99.8 returned bt type is not exam!
+
+look at the explain() output and find how mongo interpreted this query:
+
+db.students.find({ '$and': [ {'scores.type': 'exam', 'scores.score': { $gt: 99.8 }} ] }).explain()
+
+again look at output BOTTOM-UP
+
+first:
+
+"indexBounds" : {
+                    "scores.score" : [
+                        "(99.8, inf.0]"
+                    ]
+                }
+
+looks for scores.score > 99.8
+
+next stage:
+
+"scores.type" : {
+                    "$eq" : "exam"
+                }
+
+
+this is not right as it returns all docs in which scores.score>99.8 and which have scores.type:"exam"
+
+db.students.find({ '$and': [ {'scores.type': 'exam', 'scores.score': { $gt: 99.8 }} ] }).count()
+
+26188
+
+This is same as:
+
+db.students.find({'scores.score': {$gt: 99.8}}).count()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
