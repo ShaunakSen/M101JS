@@ -1811,6 +1811,82 @@ This is same as:
 db.students.find({'scores.score': {$gt: 99.8}}).count()
 
 
+Unique Indexes:
+
+we can create unique indexes such that no 2 docs can have same keys
+
+db.getCollection('stuff').insert({'thing': 'apple'})
+db.getCollection('stuff').insert({'thing': 'pear'})
+db.getCollection('stuff').insert({'thing': 'apple'})
+
+
+db.getCollection('stuff').createIndex({"thing": 1})
+
+ok..
+
+db.getCollection('stuff').dropIndex({"thing": 1})
+
+But we cannot create a unique index
+
+db.getCollection('stuff').createIndex({"thing": 1}, {unique: true})
+
+{
+    "ok" : 0.0,
+    "errmsg" : "E11000 duplicate key error collection: test.stuff index: thing_1 dup key: { : \"apple\" }",
+    "code" : 11000,
+    "codeName" : "DuplicateKey"
+}
+
+db.getCollection('stuff').remove({thing: 'apple'}, {justOne: true})
+
+Now we can add in the index:
+
+db.getCollection('stuff').createIndex({"thing": 1}, {unique: true})
+
+{
+    "createdCollectionAutomatically" : false,
+    "numIndexesBefore" : 1,
+    "numIndexesAfter" : 2,
+    "ok" : 1.0
+}
+
+Now if we add in a duplicate
+
+db.getCollection('stuff').insert({'thing': 'apple'})
+
+E11000 duplicate key error collection: test.stuff index: thing_1 dup key: { : "apple" }
+
+db.getCollection('stuff').getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "test.stuff"
+    },
+    {
+        "v" : 2,
+        "unique" : true,
+        "key" : {
+            "thing" : 1.0
+        },
+        "name" : "thing_1",
+        "ns" : "test.stuff"
+    }
+]
+
+it tells that index on thing is unique but it does not say that _id is also unique
+
+but we know that
+
+
+
+
+
+
 
 
 
