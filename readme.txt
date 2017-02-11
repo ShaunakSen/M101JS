@@ -2085,6 +2085,126 @@ db.students.findOne()
 we still get the data while index is being created
 
 
+Explain:
+
+->explain is a way to figure out what the db would do if it were to complete the query
+->explain can be used from shell or from drivers in our app
+
+prev:
+db.foo.find().explain()
+
+db.foo.find() produces a cursor. Then we run explain() on it
+
+Bit in 3.0+:
+
+db.foo.explain().find()
+
+db.foo.explain() returns an explainable object
+to that object we may run find, update, aggregate, update and help.
+We cant run an insert() on it
+
+we can pass parameters to explain() also
+
+
+Say we have a big collection of a million docs of form:
+{
+    _id:"",
+    a:1.
+    b:2,
+    c:3
+}
+
+Lets add indexes
+
+Compound index on a,b
+db.getCollection('example').createIndex({a:1, b:1})
+
+db.getCollection('example').createIndex({b:1})
+
+var exp = db.example.explain()
+
+exp is an explainable object
+
+exp.help()
+
+Explainable operations
+	.aggregate(...) - explain an aggregation operation
+	.count(...) - explain a count operation
+	.distinct(...) - explain a distinct operation
+	.find(...) - get an explainable query
+	.findAndModify(...) - explain a findAndModify operation
+	.group(...) - explain a group operation
+	.remove(...) - explain a remove operation
+	.update(...) - explain an update operation
+Explainable collection methods
+	.getCollection()
+	.getVerbosity()
+	.setVerbosity(verbosity)
+
+
+exp.find({a:17, b:55}).sort({b:-1})
+
+we can analyze winning plan to see the indexes used
+
+it also shows the rejected plans
+
+in prev versions of mongo:
+
+db.example.find({a:17, b:55}).sort({b:-1}).explain()
+
+
+db.example.find({a:17, b:55}).sort({b:-1}) returns a cursor to which we run explain()
+
+why is this not used?
+
+db.example.find({a:17, b:55}).sort({b:-1}).count() does not return a cursor
+
+so we cant run count() on it
+
+but with exp.find({a:17, b:55}).sort({b:-1}).count() we get output
+
+exp.find({c:200})
+
+here it cant use index anymore so it did COLLSCAN
+
+Note: we can still use explain in 2 ways
+get explainable obj or run explain() on cursor
+
+var cursor = db.example.find({})
+cursor.explain()
+
+Which of the following are valid ways to find out which indices a particular query uses? Check all that apply.
+
+db.example.find().explain()
+-> works..returns a cursor..so we can call explain() on it
+
+db.example.remove({a:1,b:2}).explain()
+->does NOT work as we do not get back a cursor
+
+db.example.explain().remove({a:1,b:2})
+
+->works as we call remove on an explainable obj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
