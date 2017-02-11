@@ -2186,31 +2186,238 @@ db.example.explain().remove({a:1,b:2})
 ->works as we call remove on an explainable obj
 
 
+Explain Verbosity:
+
+we have been looking at explain() in queryPlanner mode(default mode)
+But there are 2 other modes: executionStats and allPlansExecution mode
+
+executionStats includes queryPlanner mode
+
+allPlansExecution mode includes queryPlanner and executionStats mode
+
+QP tells us what db uses for indexes but does not tell us results of using that index
+For that we use ES mode
+
+var exp = db.example.explain("executionStats")
+
+exp.find({a:17, b:55})
+
+
+we analyze the data received
+we have queryPlanner mode which tells us that a_b_1 index is used
+
+executionStats is also included
+Important keys:
+
+nReturned: no of docs returned
+
+"nReturned" : 100,
+"executionTimeMillis" : 72
+"totalKeysExamined" : 100,
+"totalDocsExamined" : 100,
+
+
+
+look at executionStages from bottom up
+
+we can see the no of docs returned (nReturned) from each stage
+
+here we examined 100 keys and got back 100 docs => our index worked really well
+
+But here we were finding a and b and we had an index on a and b.. so it performed so well
+
+
+> db.example.dropIndex({a:1,b:1})
+{ "nIndexesWas" : 3, "ok" : 1 }
+
+exp.find({a:17, b:55})
+
+ "winningPlan" : {
+         "stage" : "FETCH",
+         "filter" : {
+                 "a" : {
+                         "$eq" : 17
+                 }
+         },
+         "inputStage" : {
+                 "stage" : "IXSCAN",
+                 "keyPattern" : {
+                         "b" : 1
+                 },
+                 "indexName" : "b_1",
+                 "isMultiKey" : false,
+                 "multiKeyPaths" : {
+                         "b" : [ ]
+                 },
+                 "isUnique" : false,
+                 "isSparse" : false,
+                 "isPartial" : false,
+                 "indexVersion" : 2,
+                 "direction" : "forward",
+                 "indexBounds" : {
+                         "b" : [
+                                 "[55.0, 55.0]"
+                         ]
+                 }
+         }
+ },
 
 
 
 
 
+"executionSuccess" : true,
+"nReturned" : 100,
+"executionTimeMillis" : 1155,
+"totalKeysExamined" : 10000,
+"totalDocsExamined" : 10000,
+
+"executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 100,
+                "executionTimeMillis" : 14,
+                "totalKeysExamined" : 10000,
+                "totalDocsExamined" : 10000,
+                "executionStages" : {
+                        "stage" : "FETCH",
+                        "filter" : {
+                                "a" : {
+                                        "$eq" : 17
+                                }
+                        },
+                        "nReturned" : 100,
+                        "executionTimeMillisEstimate" : 11,
+                        "works" : 10001,
+                        "advanced" : 100,
+                        "needTime" : 9900,
+                        "needYield" : 0,
+                        "saveState" : 78,
+                        "restoreState" : 78,
+                        "isEOF" : 1,
+                        "invalidates" : 0,
+                        "docsExamined" : 10000,
+                        "alreadyHasObj" : 0,
+                        "inputStage" : {
+                                "stage" : "IXSCAN",
+                                "nReturned" : 10000,
+                                "executionTimeMillisEstimate" : 11,
+                                "works" : 10001,
+                                "advanced" : 10000,
+                                "needTime" : 0,
+                                "needYield" : 0,
+                                "saveState" : 78,
+                                "restoreState" : 78,
+                                "isEOF" : 1,
+                                "invalidates" : 0,
+                                "keyPattern" : {
+                                        "b" : 1
+                                },
+                                "indexName" : "b_1",
+                                "isMultiKey" : false,
+                                "multiKeyPaths" : {
+                                        "b" : [ ]
+                                },
+                                "isUnique" : false,
+                                "isSparse" : false,
+                                "isPartial" : false,
+                                "indexVersion" : 2,
+                                "direction" : "forward",
+                                "indexBounds" : {
+                                        "b" : [
+                                                "[55.0, 55.0]"
+                                        ]
+                                },
+                                "keysExamined" : 10000,
+                                "seeks" : 1,
+                                "dupsTested" : 0,
+                                "dupsDropped" : 0,
+                                "seenInvalidated" : 0
+                        }
+                }
+        },
 
 
+looking at executionStats bottom up:
+
+Innermost doc is 1st stage
+
+"indexName" : "b_1", : ran query using index b
+
+"indexBounds" : {
+                    "b" : [
+                            "[55.0, 55.0]"
+                    ]
+            },
+
+"nReturned" : 10000,
 
 
+In the upper stage the 10000 docs had to be checked for a value of 17
+
+"stage" : "FETCH",
+        "filter" : {
+                "a" : {
+                        "$eq" : 17
+                }
+        },
+        "nReturned" : 100,
+
+From here 100 docs were returned
 
 
+3rd option: allPlansExecution
+
+> db.example.createIndex({a:1,b:1})
 
 
+> var exp = db.example.explain("allPlansExecution")
+
+executionStats gives us execution stats for the winning plan
+But it does not give us execution stats for other plans
+
+allPlansExecution does this
 
 
+exp.find({a:17, b:55})
+
+returned allPlansExecution result at: https://api.myjson.com/bins/n1qrt
+
+allPlansExecution is an array
 
 
+1st plan:
+
+"indexName": "b_1",
+
+so it is considering using b index
+
+Note:
+
+"totalKeysExamined": 101,
+"totalDocsExamined": 101,
+
+But we know from prev queries that to complete this query using just the b index we need to look at
+10000 docs
+So how come here it is just 101??
+
+-> 101 was as many as db needed to see to know this plan was a loser
+so db abandoned this plan
+
+2nd plan is the winner
 
 
+nReturned": 100,
+"executionTimeMillisEstimate": 0,
+"totalKeysExamined": 100,
+"totalDocsExamined": 100,
 
+indexName": "a_1_b_1",
 
+Note:
 
-
-
-
+every query should hit an index
+every index should be hit on by at least 1 query
+ie indexshould not be wasted
 
 
 
