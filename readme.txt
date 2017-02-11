@@ -1882,6 +1882,231 @@ it tells that index on thing is unique but it does not say that _id is also uniq
 
 but we know that
 
+Sparse Indexes:
+
+Used when index key is missing from some of the docs
+
+Consider the collection below:
+
+{a:1, b:2, c:5}
+{a:10, b:5, c:10}
+{a:13, b:17}
+{a:7, b:23}
+
+all a and b and values are unique
+unique index on a: ok
+unique index on b: ok
+unique index on c? last 2 docs both have c value of null and hence it will violate unique constraint
+
+Solution:
+
+specify sparse option while creating index
+
+sparse tells db that it should not include in the index docs which are missing the key
+
+So in the above eg if we index on c, 1st 2 docs will be indexed last 2 wont
+
+Say we have a collection of docs of form:
+
+{
+    "_id" : ObjectId("589dcb17edb658de350bd772"),
+    "name" : "Shaunak",
+    "employee_id" : 1,
+    "cell" : NumberLong(9830364704)
+}
+
+But some docs do not have cell
+
+Add unique index on employee_id
+
+db.getCollection('employees').createIndex({employee_id:1}, {unique: true})
+
+We also might wanna have unique index on cell ph nos as we want to ensure no 2 employees claim to be carrying
+same no
+
+db.getCollection('employees').createIndex({cell:1}, {unique: true})
+
+{
+    "ok" : 0.0,
+    "errmsg" : "E11000 duplicate key error collection: test.employees index: cell_1 dup key: { : null }",
+    "code" : 11000,
+    "codeName" : "DuplicateKey"
+}
+
+db.getCollection('employees').createIndex({cell:1}, {unique: true, sparse: true})
+
+{
+    "createdCollectionAutomatically" : false,
+    "numIndexesBefore" : 2,
+    "numIndexesAfter" : 3,
+    "ok" : 1.0
+}
+
+Now if we try to do:
+
+db.getCollection('employees').insert({
+    "name" : "test",
+    "employee_id" : 8,
+    "cell" : 9830364704
+})
+
+E11000 duplicate key error collection: test.employees index: cell_1 dup key: { : 9830364704.0 }
+
+db.employees.find().sort({employee_id:-1}).explain()
+
+In winning plan:
+
+"stage" : "IXSCAN",
+"indexName" : "employee_id_1"
+
+so it sorts by employee_id index
+
+and uses IXSCAN which is very fast
+
+Now sort on cell:
+
+db.employees.find().sort({cell:1}).explain()
+
+"winningPlan" : {
+            "stage" : "SORT",
+            "sortPattern" : {
+                "cell" : 1.0
+            },
+            "inputStage" : {
+                "stage" : "SORT_KEY_GENERATOR",
+                "inputStage" : {
+                    "stage" : "COLLSCAN",
+                    "direction" : "forward"
+                }
+            }
+        }
+
+"stage" : "COLLSCAN" => it did full collection scan
+so it did not use index
+
+this is bcoz the db knows that this is a sparse index and that there are entries missing
+
+if it uses that index for sort it might omit docs
+so it uses full collection scan
+
+Note:  db.employees.find().sort({cell:1})
+
+returns
+
+/* 1 */
+{
+    "_id" : ObjectId("589dcb65edb658de350bd787"),
+    "name" : "saurav",
+    "employee_id" : 3
+}
+
+/* 2 */
+{
+    "_id" : ObjectId("589dcb97edb658de350bd795"),
+    "name" : "bhagu",
+    "employee_id" : 5
+}
+
+/* 3 */
+{
+    "_id" : ObjectId("589dcb85edb658de350bd789"),
+    "name" : "paddy",
+    "employee_id" : 4,
+    "cell" : NumberLong(8158856789)
+}
+
+/* 4 */
+{
+    "_id" : ObjectId("589dcb39edb658de350bd77b"),
+    "name" : "mini",
+    "employee_id" : 2,
+    "cell" : NumberLong(8609131604)
+}
+
+/* 5 */
+{
+    "_id" : ObjectId("589dcb17edb658de350bd772"),
+    "name" : "Shaunak",
+    "employee_id" : 1,
+    "cell" : NumberLong(9830364704)
+}
+
+so even the docs that dont have cell are returned. No docs omitted. Not possible had db used index
+
+
+so sparse index cant be used for sorting
+
+adv of sparse index:
+1. we do not have entry for every single doc for the key that we wanna index
+2. uses less space
+
+Index Creation: Foreground and Background:
+
+Foreground:
+
+->default
+->relatively fast
+->blocks all readers and writers in the db.. other dbs we will be able to access
+
+Background:
+
+->relatively slow
+->does not blocks readers and writers in the db.. But we can have only one background index creation
+at a time. Others have to queue and wait
+
+with MongoDB 2.4 and later, you can create multiple background indexes in parallel even on the same database.
+
+Another strategy:
+
+Create index on diff server than one where we serve queries
+
+Say there are 3 servers: A, B and C working together(MongoDB replica set)
+
+Take C out of set temporarily. Run index creation in foreground on C as it is faster.
+During this time use A and B to server queries
+After index creation is done bring C back to set
+
+use school db
+
+drop index scores.score
+now recreate the index
+
+while we create the index if we try to access the same db by say
+db.students.findOne() we will be blocked
+
+But we can access other db
+
+Now lets create index in background and see
+
+db.students.createIndex({"scores.score": 1}, {background: true})
+
+Now if we do
+db.students.findOne()
+we still get the data while index is being created
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
