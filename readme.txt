@@ -2417,7 +2417,93 @@ Note:
 
 every query should hit an index
 every index should be hit on by at least 1 query
-ie indexshould not be wasted
+ie index should not be wasted
+
+Covered Queries:
+
+Query can be satisfied ENTIRELY by an index
+no documents need to be scanned
+much faster
+
+We have large coll of numbers like:
+
+
+> db.numbers.findOne()
+{ "_id" : ObjectId("58a0d9c80d7421928b7efa3b"), "i" : 0, "j" : 0, "k" : 0 }
+
+
+> db.numbers.createIndex({i:1,j:1,k:1})
+{
+        "createdCollectionAutomatically" : false,
+        "numIndexesBefore" : 1,
+        "numIndexesAfter" : 2,
+        "ok" : 1
+}
+
+
+> db.numbers.find({i:2, j:4}).count()
+55
+
+var exp = db.numbers.explain("executionStats");
+exp.find({i:2, j:4})
+
+
+"executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 55,
+                "executionTimeMillis" : 96,
+                "totalKeysExamined" : 55,
+                "totalDocsExamined" : 55,
+
+                ...
+
+                 "indexName" : "i_1_j_1_k_1",
+            }
+
+
+It used i_j_k index but it examined 55 docs
+So it is not a covered query
+
+But why did it need to examine in spite of us providing index?
+reason: we also asked for _id which was not included in index
+
+exp.find({i:2, j:4}, {_id:0, i:1, j:1, k:1})
+
+
+"executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 55,
+                "executionTimeMillis" : 0,
+                "totalKeysExamined" : 55,
+                "totalDocsExamined" : 0,
+
+            }
+
+
+totalDocsExamined: 0 and we use index and we get nReturned > 0 => covered
+
+Interesting thing:
+
+if we do:
+
+exp.find({i:2, j:4}, {_id:0})
+
+ "executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 55,
+                "executionTimeMillis" : 0,
+                "totalKeysExamined" : 55,
+                "totalDocsExamined" : 55,
+                }
+
+
+Why?
+
+we are not specifying what other keys to include
+we are simply saying we dont want _id
+so mongo needs to inspect the docs as it does not know what other keys(say p, q, r) exist
+
+
 
 
 

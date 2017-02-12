@@ -1,9 +1,10 @@
-for (var i = 0; i < 100; ++i) {
-    for (var j = 0; j < 100; ++j) {
+for (var i = 0; i < 10; ++i) {
+    for (var j = 0; j < 10; ++j) {
         var x = [];
-        for (var k = 0; k < 100; ++k) {
-            x.push({a: i, b: j, c: k, _id: (100 * 100 * i + 100 * j + 100 * k)})
+        for (var k = 0; k < 10; ++k) {
+            x.push({i:i, j:j, k:k});
+            db.numbers.insert(x);
         }
-        db.example.insert(x);
+
     }
 }
