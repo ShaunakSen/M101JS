@@ -2504,13 +2504,91 @@ we are simply saying we dont want _id
 so mongo needs to inspect the docs as it does not know what other keys(say p, q, r) exist
 
 
+You would like to perform a covered query on the example collection. You have the following indexes:
+
+{ name : 1, dob : 1 }
+{ _id : 1 }
+{ hair : 1, name : 1 }
+Which of the following is likely to be a covered query? Check all that apply.
+
+a: db.example.find({_id:11}, {_id:0, name:1, dob:1})
+b: db.example.find({name: {$in: ["a", "b"]}}, {name:1, hair:1})
+c: db.example.find({name: {$in: ["a", "b"]}}, {_id:0, hair:1, name:1})
+d: db.example.find({name: {$in: ["a", "b"]}}, {_id:0, dob:1, name: 1})
+
+Ans: only d
+
+Reason:
+
+d: only looks at name and uses { name : 1, dob : 1 } index
+c: looks just at name but returned hair and name. Issue is if it looks just at name it uses index { name : 1, dob : 1 }
+not { hair : 1, name : 1 } as in the latter name is not in left subset.. Now to get hair it must scan docs
+
+When is an Index Used?:
+
+We will look at how mongo chooses an index
+
+
+Say we have 5 indexes:
+b,c     c,b     d,e     e,f     a,b,c
+
+When mongo receives a query it looks at its shape ie what fields are being searched on and if there is a sort()
+based on that sys identifies set of candidate index
+
+Say b,c     c,b     and     a,b,c   are candidate indexes
+
+Then mongo creates 3 query plans for each of these 3 candidates
+Then in 3 parallel threads issue the queries using these 3 indexes and see which returns results fastest
+
+Winning query plan is stored in cache for future use for queries of that shape
+
+It will be stored in cache until:
+
+-> threshold no of writes occur: 1000
+-> rebuild the index
+-> if any index is added/dropped
+-> mongod process is restarted
+
+
+Given collection foo with the following index:
+
+db.foo.createIndex( { a : 1, b : 1, c : 1 } )
+Which of the following queries will use the index?
+
+a: db.foo.find({b:3, c:4})
+b: db.foo.find({a:3})
+c: db.foo.find({c:4}).sort({a:1, b:1})
+d: db.foo.find({c:4}).sort({a:-1, b:1})
+
+Ans: b and c
+
+To verify the answer key, and see how each index is used, you can check explain("executionStats").
+
+The overriding principle, though, is that you must use a left-subset (or "prefix") of the index.
+For sorting, it must either match the index orientation, or match its reverse orientation,
+which you can get when the btree is walked backwards.
+
+Index Sizes:
+
+We should fit Working Set into memory
+WS: portion of our data that clients are frequently accessing
+Indexes should also fit into WS as in order to look for index if we have to pull it from disk we lose the
+performance benefits of having an index in the first place
+
+
+db.students.stats()
 
 
 
+"nindexes" : 1,
+    "totalIndexSize" : 29380608,
+    "indexSizes" : {
+        "_id_" : 29380608
+    }
 
 
-
-
+wiredTiger supports prefix compression which allows us to have smaller index
+so they take up less space on WS
 
 
 
