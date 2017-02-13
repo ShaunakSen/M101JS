@@ -2590,19 +2590,118 @@ db.students.stats()
 wiredTiger supports prefix compression which allows us to have smaller index
 so they take up less space on WS
 
+Index Cardinality:
+
+How many index pts are there for each type of index
+
+Regular: for every single key that we put in index there is gonna be an index pt. If there is no key then
+there is index point for null entry.. So 1:1 relative to no of docs
+
+Sparse: a doc may miss key being indexed. Its not in index.. as we dont keep nul in index
+So no of index pts <= no of docs
+
+Multi key: index on array values.. say tags:["", "", "", ""]
+
+So there is an index pt for every single one of the values in tags
+
+no of index pts >> no of docs
+
+it may be significantly greater than no of docs
+
+When doc moves every single index pt needs to be updated
+if key is null for a particular index then there is no update that needs to happen
+Regular index: yes, 1 index pt needs to be updated
+
+For multikey all indexes need to be updated
 
 
+Geospatial Indexes:
+
+They allow us to find things based on location ie x, y co-ordinates
+
+Say there are set of stores and a person
+we want to find out stores closest to the person
+
+for this our doc needs to have a field with x, y coords
+
+location: [x, y],
+type: "Restaurant"
+
+createIndex({"location": "2d", type: 1})
+
+find({location: {$near: [x,y]}})
+-> returns in order of inc distance
 
 
+db.getCollection('places').createIndex({location:"2d", "type": 1})
+
+{
+    "createdCollectionAutomatically" : false,
+    "numIndexesBefore" : 1,
+    "numIndexesAfter" : 2,
+    "ok" : 1.0
+}
+
+db.getCollection('places').getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "test.places"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "location" : "2d",
+            "type" : 1.0
+        },
+        "name" : "location_2d_type_1",
+        "ns" : "test.places"
+    }
+]
 
 
+db.getCollection('places').find({location: {$near: [50, 50]}})
 
 
+/* 1 */
+{
+    "_id" : ObjectId("58a20877000082725fcd4774"),
+    "name" : "momo shop gate 10",
+    "type" : "restaurant",
+    "location" : [
+        40,
+        74
+    ]
+}
 
+/* 2 */
+{
+    "_id" : ObjectId("58a2088c000082725fcd4781"),
+    "name" : "bbq",
+    "type" : "restaurant",
+    "location" : [
+        40.2,
+        -74.3
+    ]
+}
 
+/* 3 */
+{
+    "_id" : ObjectId("58a208a1000082725fcd4785"),
+    "name" : "jhoops",
+    "type" : "restaurant",
+    "location" : [
+        41,
+        -75
+    ]
+}
 
-
-
+Note: returns in order of inc dist
 
 
 
