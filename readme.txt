@@ -2704,27 +2704,257 @@ db.getCollection('places').find({location: {$near: [50, 50]}})
 Note: returns in order of inc dist
 
 
+Geospatial Spherical:
+
+this uses latitude and longitude
+
+Mongo uses location specification called geojson
+
+"_id" : ObjectId("58a210f2000082725fcd48b3"),
+    "name" : "junction mall",
+    "location" : {
+        "type" : "Point",
+        "coordinates" : [
+            87.2895322,
+            23.538859
+        ]
+}
+
+Note coordinates ate stored in [long, lat] format
+
+We need index:
+
+db.places_3d.createIndex({"location": "2dsphere"})
+
+{
+    "createdCollectionAutomatically" : true,
+    "numIndexesBefore" : 1,
+    "numIndexesAfter" : 2,
+    "ok" : 1.0
+}
+
+db.places_3d.getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "test.places_3d"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "location" : "2dsphere"
+        },
+        "name" : "location_2dsphere",
+        "ns" : "test.places_3d",
+        "2dsphereIndexVersion" : 3
+    }
+]
 
 
+We want closest things from college
+
+db.places_3d.find({
+    location: {
+            $near: {
+                    $geometry: {
+                                type: "Point",
+                                coordinates: [87.2890669, 23.5500977]
+                            },
+                            $maxDistance: 11000
+                }
+        }
+    })
 
 
+Text Indexes:
+
+Full text search index
+
+say we have a very large text in a doc
+"myText": "lorem  ipsum........  "
+
+we cant search for a particular word in mongodb.. we need to search on the entire string
+
+we could put all words in an array and use $set to push into array and then search.. but that its very tedious
+
+full text search indexes the doc on every word much like how an array is indexed
+
+/* 1 */
+{
+    "_id" : ObjectId("58a21a62000082725fcd4b52"),
+    "words" : "cat moss granite"
+}
+
+/* 2 */
+{
+    "_id" : ObjectId("58a21a7a000082725fcd4b54"),
+    "words" : "dog tree ruby"
+}
+
+/* 3 */
+{
+    "_id" : ObjectId("58a21a8f000082725fcd4b5c"),
+    "words" : "dog tree granite"
+}
+
+/* 4 */
+{
+    "_id" : ObjectId("58a21a9c000082725fcd4b5e"),
+    "words" : "dog cat granite"
+}
+
+/* 5 */
+{
+    "_id" : ObjectId("58a21ab1000082725fcd4b67"),
+    "words" : "ruby cat dog"
+}
 
 
+db.getCollection('dogs').find({"words" : "cat moss granite"})
+
+{
+    "_id" : ObjectId("58a21a62000082725fcd4b52"),
+    "words" : "cat moss granite"
+}
+
+db.getCollection('dogs').find({"words" : "cat moss "})
+
+Fetched 0 record(s) in 1ms
 
 
+These queries are very specific
+
+add in a text index:
+
+db.getCollection('dogs').createIndex({"words":"text"})
+
+NOTE: text index uses logical OR while searching
+so if u search for "mini shona"
+all docs containing either or both are returned
+
+db.getCollection('dogs').getIndexes()
+
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "test.dogs"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "_fts" : "text",
+            "_ftsx" : 1
+        },
+        "name" : "words_text",
+        "ns" : "test.dogs",
+        "weights" : {
+            "words" : 1
+        },
+        "default_language" : "english",
+        "language_override" : "language",
+        "textIndexVersion" : 3
+    }
+]
+
+db.dogs.find({$text: {$search: "dog"}})
+
+/* 1 */
+{
+    "_id" : ObjectId("58a21a7a000082725fcd4b54"),
+    "words" : "dog tree ruby"
+}
+
+/* 2 */
+{
+    "_id" : ObjectId("58a21a8f000082725fcd4b5c"),
+    "words" : "dog tree granite"
+}
+
+/* 3 */
+{
+    "_id" : ObjectId("58a21a9c000082725fcd4b5e"),
+    "words" : "dog cat granite"
+}
+
+/* 4 */
+{
+    "_id" : ObjectId("58a21ab1000082725fcd4b67"),
+    "words" : "ruby cat dog"
+}
 
 
+db.dogs.find({$text: {$search: "GrAnite..."}})
 
 
+/* 1 */
+{
+    "_id" : ObjectId("58a21a62000082725fcd4b52"),
+    "words" : "cat moss granite"
+}
+
+/* 2 */
+{
+    "_id" : ObjectId("58a21a8f000082725fcd4b5c"),
+    "words" : "dog tree granite"
+}
+
+/* 3 */
+{
+    "_id" : ObjectId("58a21a9c000082725fcd4b5e"),
+    "words" : "dog cat granite"
+}
+
+Capitalization or putting periods make no diff
+so it is quite flexible
 
 
+We can also ge back results in order acc to how good a match mongodb feels it is
 
+db.dogs.find({$text: {$search: "dog granite"}}, {$score: {$meta: "textScore"}}).sort({$score: {$meta: "textScore"}})
 
+/* 1 */
+{
+    "_id" : ObjectId("58a21a8f000082725fcd4b5c"),
+    "words" : "dog tree granite",
+    "$score" : 1.33333333333333
+}
 
+/* 2 */
+{
+    "_id" : ObjectId("58a21a9c000082725fcd4b5e"),
+    "words" : "dog cat granite",
+    "$score" : 1.33333333333333
+}
 
+/* 3 */
+{
+    "_id" : ObjectId("58a21a62000082725fcd4b52"),
+    "words" : "cat moss granite",
+    "$score" : 0.666666666666667
+}
 
+/* 4 */
+{
+    "_id" : ObjectId("58a21a7a000082725fcd4b54"),
+    "words" : "dog tree ruby",
+    "$score" : 0.666666666666667
+}
 
-
+/* 5 */
+{
+    "_id" : ObjectId("58a21ab1000082725fcd4b67"),
+    "words" : "ruby cat dog",
+    "$score" : 0.666666666666667
+}
 
 
 
