@@ -2957,6 +2957,184 @@ db.dogs.find({$text: {$search: "dog granite"}}, {$score: {$meta: "textScore"}}).
 }
 
 
+Efficiency of Index Use:
+
+Goal:
+RW ops are efficient
+Selectivity: Minimize no of records scanned with our index
+How are Sorts handled?
+
+
+students collection:
+
+{
+    student_id:"",
+    scores: [
+        {
+            type: "exam",
+            score: 70
+        }
+    ],
+    class_id:100,
+    final_grade: 80
+}
+
+
+
+db.students.find({student_id:{$gt:500000}, class_id:54}).sort({student_id:1}).explain("executionstats")
+
+
+if we run this:
+
+totalKeysExamined: 850000+
+executionTime is 2700ms
+
+- how many keys within the index mongo walked thru in order to generate result
+nReturned: 10000
+
+we had to look at a lot more index keys than we needed to find docs
+
+so index was not very selective
+
+winning plan used compd index on student_id, class_id
+losing plan would have used index on class_id  but would have to do in memory SORT
+so it failed
+
+now note that student_id:{$gt:500000} represents half collection assuming there are 1 mil students
+
+But class_id:54 has around 500 docs so it is much more selective
+
+db.students.find({student_id:{$gt:500000}, class_id:54}).sort({student_id:1}).hint({class_id:1}).explain("executionstats")
+
+
+hint(shape/name of index)
+
+totalKeysExamined: 20071
+nreturned: 10000
+
+executionTime is 79ms
+
+execution time is also less
+
+
+Better Index: class_id:1, student_id:1
+
+class_id is prefix which is the most selective part of our query
+Generally, as we are building compound indexes, put index on which u will do quality queries first b4 the ones
+in which u will do ranged queries
+
+db.students.find({student_id:{$gt:500000}, class_id:54}).sort({final_grade:1}).explain("executionstats")
+
+nReturned = totalKeysExamined = totalDocsExamined
+
+We also have a SORT stage so we are doing in memory sort
+
+
+used index: class_id:1, student_id:1
+
+To avoid SORT we need to make a trade-off
+We need to examine a few more keys
+
+
+new index: class_id:1, final_grade:1, student_id:1
+
+1st it will very selectively identify records we want by class_id:1
+then it will walk the next component of keys all the way thru the index so it pulls out the docs in sorted order
+we can eliminate dos that dont match criteria on student_id
+
+execution time is very less  now
+but we are needing to scan a few more keys
+winning plan does not have a SORT stage
+
+Why was this a better index?
+
+class_id is very selective
+final_grade: allows us to walk the index keys in order to get sorted result
+student_id: allows us to filter on {student_id:{$gt:500000}
+
+
+we can also sort in rev direction
+db.students.find({student_id:{$gt:500000}, class_id:54}).sort({final_grade:-1}).explain("executionstats")
+
+
+At about 3:13, Shannon mentions that MongoDB can walk the index backward in order to sort on the final_grade field.
+While true given that we are sorting on only this field, if we want to sort on multiple fields,
+the direction of each field on which we want to sort in a query must be the same as the direction of each field
+specified in the index. So if we want to sort using something like
+db.collection.find( { a: 75 } ).sort( { a: 1, b: -1 } ), we must specify the index using the same
+directions, e.g., db.collection.createIndex( { a: 1, b: -1 } ).
+
+
+
+Logging slow queries:
+
+
+Profiling: to debug performance of program
+there is a Profiler built in mongodb
+
+mongo automatically logs slow queries(> 100ms) to a log
+
+Profiler:
+
+
+It will write entries to system.profile for any query that takes longer than some specified period of time
+
+There are 3 levels:
+
+0: off(default)
+1: logs the slow queries
+2: logs all queries
+
+we may use level 2 to know all queries that db is handling.. more for debugging purposes
+
+mongod --dbpath /usr/local/var/mongodb --profile 1 --slowms 2
+
+log the slow queries above 2 ms
+
+drop indexes on school db
+
+db.students.find({id:1000}) -> slow query
+
+now we look in db.system.profile
+
+
+db.system.profile.find()
+
+"query" : {
+        "find" : "students",
+        "filter" : {
+            "id" : 1000.0
+        }
+    }
+
+This is the query we did
+
+"docsExamined" : 3247647,
+"nreturned" : 0,
+"millis" : 43777,
+
+ts: time stamp of query
+
+db.system.profile.find({millis: {$gt:1}}).sort({ts:1})
+
+db.getProfilingLevel()
+1
+db.getProfilingStatus()
+
+{
+    "was" : 1,
+    "slowms" : 2
+}
+
+db.setProfilingLevel(1,4)
+- level 1 and 4 ms
+
+Turn off:
+
+db.setProfilingLevel(0)
+
+
+
 
 
 
