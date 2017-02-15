@@ -1357,7 +1357,7 @@ Say we have a bunch of MongoDB servers running in a cluster. SE DOES NOT handle 
 i.e if we have diff servers, data might get transferred from server to server to provide fault tolerance
 This is not affected by SE
 
-It DOES NOT affect API that db presents to thr programmer
+It DOES NOT affect API that db presents to the programmer
 
 So it is same for MMAP and WiredTiger
 
@@ -1416,7 +1416,7 @@ So before data is written to disk WT compresses the data. This saves a lot of sp
 Keys are often repeated in most docs. So lot of scope for compression
 
 3. No in-place updates: It uses append only nature of storing data.
-When we update doc, WT marks that the space where the doc was in memory is no longer used and ii
+When we update doc, WT marks that the space where the doc was in memory is no longer used and it
 allocates space for the doc somewhere else
 This can result in writing a lot of data say, if u have a large doc and u update only one item, WT has to write that entire
 doc again. But this append only feature that helps it in doc level concurrency
@@ -1589,6 +1589,7 @@ db.students.dropIndex({student_id: 1})
 
 
 Multi key Indexes:
+__________________
 
 We can create indexes on arrays as well
 
@@ -1755,7 +1756,7 @@ in second stage:
 
 here we are doing an elemMatch for both conditions ie score > 99.8 AND type: exam
 
-db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}}).explain()
+db.students.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99.8}}}}).explain("executionStats")
 
 Now we will get the execution stats also!!
 
@@ -1812,6 +1813,7 @@ db.students.find({'scores.score': {$gt: 99.8}}).count()
 
 
 Unique Indexes:
+______________________
 
 we can create unique indexes such that no 2 docs can have same keys
 
@@ -1883,6 +1885,7 @@ it tells that index on thing is unique but it does not say that _id is also uniq
 but we know that
 
 Sparse Indexes:
+_____________________
 
 Used when index key is missing from some of the docs
 
@@ -2041,6 +2044,7 @@ adv of sparse index:
 2. uses less space
 
 Index Creation: Foreground and Background:
+__________________________________________
 
 Foreground:
 
@@ -2063,7 +2067,7 @@ Create index on diff server than one where we serve queries
 Say there are 3 servers: A, B and C working together(MongoDB replica set)
 
 Take C out of set temporarily. Run index creation in foreground on C as it is faster.
-During this time use A and B to server queries
+During this time use A and B to serve queries
 After index creation is done bring C back to set
 
 use school db
@@ -2086,6 +2090,7 @@ we still get the data while index is being created
 
 
 Explain:
+______________
 
 ->explain is a way to figure out what the db would do if it were to complete the query
 ->explain can be used from shell or from drivers in our app
@@ -2218,7 +2223,7 @@ nReturned: no of docs returned
 
 
 
-look at executionStages from bottom up
+look at "executionStages" from bottom up
 
 we can see the no of docs returned (nReturned) from each stage
 
@@ -2420,6 +2425,7 @@ every index should be hit on by at least 1 query
 ie index should not be wasted
 
 Covered Queries:
+_____________________
 
 Query can be satisfied ENTIRELY by an index
 no documents need to be scanned
@@ -3133,6 +3139,16 @@ Turn off:
 
 db.setProfilingLevel(0)
 
+
+Mongotop:
+
+gives high level view of where mongo is spending its time
+
+
+
+Sharding:
+
+splitting
 
 
 
