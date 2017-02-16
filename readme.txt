@@ -3396,14 +3396,143 @@ here we match, sort then skip the 1st 10 and limit and project
 
 
 
+Reshaping Documents in $project stages
+_________________________________________
+
+
+Say in the cruchbase data set we want to look for:
+all companies where greylock partners participated in some round of funding
+
+
+"funding_rounds" : [
+        {
+
+            "investments" : [
+                {
+                    "company" : null,
+                    "financial_org" : {
+                        "name" : "Greylock Partners",
+                        "permalink" : "greylock"
+                    },
+                    "person" : null
+                },
+                {
+                    "company" : null,
+                    "financial_org" : {
+                        "name" : "Omidyar Network",
+                        "permalink" : "omidyar-network"
+                    },
+                    "person" : null
+                }
+            ]
+        }
+
+]
 
 
 
+Query:
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name: 1,
+            ipo: "$ipo.pub_year",
+            valuation: "$ipo.valuation_amount",
+            founders: "$funding_rounds.investments.financial_org.permalink"
+        }
+    }
+])
 
 
+What we are doing:
 
 
+{$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}}
+this matches the data for greylock funding
 
+
+{$project: {
+            _id:0,
+            name: 1,
+            ipo: "$ipo.pub_year",
+            valuation: "$ipo.valuation_amount",
+            founders: "$funding_rounds.investments.financial_org.permalink"
+        }
+}
+
+- here we are promoting some nested fields
+
+ipo: "$ipo.pub_year"
+
+we dive into the nested fields and make them top level fields in our outpu docs
+
+Sample op:
+
+{
+    "name" : "LinkedIn",
+    "ipo" : 2011,
+    "valuation" : NumberLong(9310000000),
+    "founders" : [
+        [
+            "sequoia-capital"
+        ],
+        [
+            "greylock"
+        ]
+    ]
+}
+
+
+So we have a lot of power on how to get op docs using $project!!
+
+Next example:
+
+Constructing a new doc from values in our ip doc
+
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name:1,
+            founded: {
+                    year: "$founded_year",
+                    month: "$founded_month",
+                    day: "$founded_day"
+                }
+        }
+    }
+])
+
+
+Sample op:
+
+/* 1 */
+{
+    "name" : "Digg",
+    "founded" : {
+        "year" : 2004,
+        "month" : 10,
+        "day" : 11
+    }
+}
+
+/* 2 */
+{
+    "name" : "Facebook",
+    "founded" : {
+        "year" : 2004,
+        "month" : 2,
+        "day" : 1
+    }
+}
+
+
+here we are creating a nested doc from some top level fields
+
+So there is a lot of flexibility on how we can reshape docs using $project
 
 
 
