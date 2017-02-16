@@ -2597,13 +2597,14 @@ wiredTiger supports prefix compression which allows us to have smaller index
 so they take up less space on WS
 
 Index Cardinality:
+_____________________
 
 How many index pts are there for each type of index
 
 Regular: for every single key that we put in index there is gonna be an index pt. If there is no key then
 there is index point for null entry.. So 1:1 relative to no of docs
 
-Sparse: a doc may miss key being indexed. Its not in index.. as we dont keep nul in index
+Sparse: a doc may miss key being indexed. Its not in index.. as we dont keep null in index
 So no of index pts <= no of docs
 
 Multi key: index on array values.. say tags:["", "", "", ""]
@@ -2778,6 +2779,7 @@ db.places_3d.find({
 
 
 Text Indexes:
+________________
 
 Full text search index
 
@@ -2964,6 +2966,7 @@ db.dogs.find({$text: {$search: "dog granite"}}, {$score: {$meta: "textScore"}}).
 
 
 Efficiency of Index Use:
+____________________________
 
 Goal:
 RW ops are efficient
@@ -2995,7 +2998,7 @@ if we run this:
 totalKeysExamined: 850000+
 executionTime is 2700ms
 
-- how many keys within the index mongo walked thru in order to generate result
+totalKeysExamined- how many keys within the index mongo walked thru in order to generate result
 nReturned: 10000
 
 we had to look at a lot more index keys than we needed to find docs
@@ -3073,6 +3076,7 @@ directions, e.g., db.collection.createIndex( { a: 1, b: -1 } ).
 
 
 Logging slow queries:
+______________________
 
 
 Profiling: to debug performance of program
@@ -3152,18 +3156,243 @@ splitting
 
 
 
+Week -6
+_____________________________________________________
+
+
+Introduction to the Aggregation Framework
+_______________________________________________
+
+
+AF is a set of analytics tools in mongodb that allow us to run various types of reports or analysis on docs in one
+or more collections
+
+This is based on a Pipeline
+
+Pipeline:
+
+
+Collection ------> Stage 1 -------> Stage 2 ------> ... ------> Output
+
+Each stage performs a diff op
+each stage takes as ip what the stage before it produced as op
+
+Note we have seen this in explain() in winningPlan
+
+Ip and op for all stages are stream of docs
+
+Each indv stage is a data processing unit
+
+It takes a stream of ip docs, processes each doc one at a time and produces an op stream of docs one at a time
+Each stage provides a set of knobs or tunables that we can control to parameterize the stage to perform a
+particular task
+
+These tunables typically take the form of operators that we can supply. They modify fields for arithmetic ops, do
+some accumulation etc
+
+Often we include same type of stage in a Pipeline
+
+Stage 1 may be an initial filter so that we do not have to pass the entire collection into the pipeline
+Then remaining stages may be for processing
+Final stage may be again for filtering to obtain suitable op
+
+
+Familiar Aggregation Operations
+_________________________________
+
+-match(FIND)
+-project
+-sort
+-skip
+-limit
+
+
+Why are these stages necessary given that the functionalities are already available in mongo query language?
+- we need these stages to support the more complex analytics related functionalities that are associated with AF
+
+
+Return to crunchbase dataset
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}}
+])
+
+- look for all companies where founded_year: 2004
+
+adding a 2nd stage to our pipeline:
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$project: {
+            _id:0,
+            name: 1,
+            founded_year:1
+        }
+    }
+])
+
+pipeline is an array of docs as elements
+
+each doc must stipulate a particular stage operator
+
+in above query we have 2 stages: match and project
+
+match is filtering against companies coll and passing on to project stage one at a time all of the docs that match
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$limit: 5},
+    {$project: {
+            _id:0,
+            name: 1,
+        }
+    }
+])
 
 
 
+/* 1 */
+{
+    "name" : "Digg"
+}
+
+/* 2 */
+{
+    "name" : "Facebook"
+}
+
+/* 3 */
+{
+    "name" : "AddThis"
+}
+
+/* 4 */
+{
+    "name" : "Veoh"
+}
+
+/* 5 */
+{
+    "name" : "Pando Networks"
+}
 
 
+Note: had we swapped order of limit and project:
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$project: {
+            _id:0,
+            name: 1,
+        }
+    },
+    {$limit: 5}
+])
+
+Same result
 
 
+The diff is we had to run many no of docs thru project stage
+
+So always think about the efficiency of the aggregation pipeline. Try to limit the no of docs to be
+passed on to the next stage
+
+Sort stage:
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$sort: {name: 1} },
+    {$limit: 5},
+    {$project: {
+            _id:0,
+            name: 1,
+        }
+    }
+])
+
+/* 1 */
+{
+    "name" : "1915 Studios"
+}
+
+/* 2 */
+{
+    "name" : "1Scan"
+}
+
+/* 3 */
+{
+    "name" : "2GeeksinaLab"
+}
+
+/* 4 */
+{
+    "name" : "2GeeksinaLab"
+}
+
+/* 5 */
+{
+    "name" : "2threads"
+}
 
 
+here we sort by name ASC
+
+if here we swap sort and limit
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$sort: {name: 1} },
+    {$skip: 10},
+    {$limit: 5},
+    {$project: {
+            _id:0,
+            name: 1,
+        }
+    }
+])
+
+Diff op:
 
 
+/* 1 */
+{
+    "name" : "AddThis"
+}
 
+/* 2 */
+{
+    "name" : "Digg"
+}
+
+/* 3 */
+{
+    "name" : "Facebook"
+}
+
+/* 4 */
+{
+    "name" : "Pando Networks"
+}
+
+/* 5 */
+{
+    "name" : "Veoh"
+}
+
+db.companies.aggregate([
+    {$match: {founded_year: 2004}},
+    {$sort: {name: 1} },
+    {$skip: 10},
+    {$project: {
+            _id:0,
+            name: 1,
+        }
+    },
+    {$limit: 5}
+])
+
+here we match, sort then skip the 1st 10 and limit and project
 
 
 
