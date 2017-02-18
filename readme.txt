@@ -3466,7 +3466,7 @@ this matches the data for greylock funding
 
 ipo: "$ipo.pub_year"
 
-we dive into the nested fields and make them top level fields in our outpu docs
+we dive into the nested fields and make them top level fields in our output docs
 
 Sample op:
 
@@ -3535,145 +3535,342 @@ here we are creating a nested doc from some top level fields
 So there is a lot of flexibility on how we can reshape docs using $project
 
 
+$unwind
+______________________
+
+
+when working with array fields in agg pipelines we often need one or more unwind stages
+
+{
+    key1: "value1",
+    key2: "value2",
+    key3: ["elem1", "elem2", "elem3"]
+}
+
+After $unwind on key3:
+
+{
+    key1: "value1",
+    key2: "value2",
+    key3: "elem1"
+}
+
+{
+    key1: "value1",
+    key2: "value2",
+    key3: "elem2"
+}
+
+{
+    key1: "value1",
+    key2: "value2",
+    key3: "elem3"
+}
 
+So each op doc has single value for key3 field, not an array of values
 
 
+Using this on companies eg:
 
 
+Query:
 
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name: 1,
+            amount: "$funding_rounds.raised_amount"
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
 
 
+Sample op doc:
 
+{
+    "name" : "Digg",
+    "amount" : [
+        8500000,
+        2800000,
+        28700000,
+        5000000
+    ],
+    "year" : [
+        2006,
+        2005,
+        2008,
+        2011
+    ]
+}
+
+
+Notice we have arrays for amount and year as we are accessing values inside funding_rounds which is an array
+
+To fix this we can include a $unwind stage before our $project stage
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$unwind: "$funding_rounds"},
+    {$project: {
+            _id:0,
+            name: 1,
+            amount: "$funding_rounds.raised_amount",
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
+
+
+Now op for the company Digg:
+
+/* 1 */
+{
+    "name" : "Digg",
+    "amount" : 8500000,
+    "year" : 2006
+}
+
+/* 2 */
+{
+    "name" : "Digg",
+    "amount" : 2800000,
+    "year" : 2005
+}
+
+/* 3 */
+{
+    "name" : "Digg",
+    "amount" : 28700000,
+    "year" : 2008
+}
+
+/* 4 */
+{
+    "name" : "Digg",
+    "amount" : 5000000,
+    "year" : 2011
+}
+
+
+
+now we get an amt and year for each funding round of each company in our coll
+
+So all docs where funder is greylock is split into no of docs equal to no of funding rounds that match the filter
+and each one of those resulting docs is passed on to project stage
 
+So a company that has 4 funding rounds will result in unwind creating 4 docs where every field is same but
+funding_round field will be diff.. instead of being an array it will be an indv element from funding_round array
 
+So op to next stage will be more docs than what unwind received as ip
 
 
+Now suppose we want to add in a funder field to our op doc
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$unwind: "$funding_rounds"},
+    {$project: {
+            _id:0,
+            name: 1,
+            funder: "$funding_rounds.investments.financial_org.permalink",
+            amount: "$funding_rounds.raised_amount",
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
+
+
+
+Actually here we are simply projecting out the permalink as a new field called funder
+
+Note that this is kind of like a check to see if our match is working properly
+so it is good practice to include this
+
+/* 1 */
+{
+    "name" : "Digg",
+    "funder" : [
+        "greylock",
+        "omidyar-network"
+    ],
+    "amount" : 8500000,
+    "year" : 2006
+}
+
+/* 2 */
+{
+    "name" : "Digg",
+    "funder" : [
+        "greylock",
+        "omidyar-network",
+        "floodgate",
+        "sv-angel"
+    ],
+    "amount" : 2800000,
+    "year" : 2005
+}
+
+/* 3 */
+{
+    "name" : "Digg",
+    "funder" : [
+        "highland-capital-partners",
+        "greylock",
+        "omidyar-network",
+        "svb-financial-group"
+    ],
+    "amount" : 28700000,
+    "year" : 2008
+}
+
+/* 4 */
+{
+    "name" : "Digg",
+    "funder" : [],
+    "amount" : 5000000,
+    "year" : 2011
+}
+
+Note : investments field is an array as multiple funders can participate in each funding round
+
+Note however one of the op docs is:
+
+{
+    "name" : "Farecast",
+    "funder" : [
+        "madrona-venture-group",
+        "wrf-capital"
+    ],
+    "amount" : 1500000,
+    "year" : 2004
+}
+
+So we are seeing a funding round for Farecast in which greylock did not participate
+
+
+This is bcoz in $match we are simply looking for companies that have any funding round that greylock participated in
+
+
+But we want to see only funding rounds that greylock participated in
+
+
+Soln 1:
+
+
+
+db.companies.aggregate([
+    {$unwind: "$funding_rounds"},
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name: 1,
+            funder: "$funding_rounds.investments.financial_org.permalink",
+            amount: "$funding_rounds.raised_amount",
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
+
+
+Now for farecast op:
+
+{
+    "name" : "Farecast",
+    "funder" : [
+        "greylock",
+        "madrona-venture-group",
+        "wrf-capital"
+    ],
+    "amount" : 7000000,
+    "year" : 2005
+}
+
+/* 8 */
+{
+    "name" : "Farecast",
+    "funder" : [
+        "greylock",
+        "madrona-venture-group",
+        "par-capital-management",
+        "pinnacle-ventures",
+        "sutter-hill-ventures",
+        "wrf-capital"
+    ],
+    "amount" : 12100000,
+    "year" : 2007
+}
+
+To make op a bit cleaner we can include second unwind so that each investment is broken up:
+
+db.companies.aggregate([
+    {$unwind: "$funding_rounds"},
+    {$unwind: "$funding_rounds.investments"},
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name: 1,
+            funder: "$funding_rounds.investments.financial_org.permalink",
+            amount: "$funding_rounds.raised_amount",
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
+
+{
+    "name" : "Farecast",
+    "funder" : "greylock",
+    "amount" : 7000000,
+    "year" : 2005
+}
+
+/* 8 */
+{
+    "name" : "Farecast",
+    "funder" : "greylock",
+    "amount" : 12100000,
+    "year" : 2007
+}
+
+But note that the 1st 2 unwinds actually run thru the entire collection
+
+We want our match op to occur as soon as possible so that at each stage we are working with fewer docs
+
+
+Soln2:
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$unwind: "$funding_rounds"},
+    {$unwind: "$funding_rounds.investments"},
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id:0,
+            name: 1,
+            funder: "$funding_rounds.investments.financial_org.permalink",
+            amount: "$funding_rounds.raised_amount",
+            year: "$funding_rounds.funded_year"
+        }
+    }
+])
+
+op:
+
+
+{
+    "name" : "Farecast",
+    "funder" : "greylock",
+    "amount" : 7000000,
+    "year" : 2005
+}
+
+/* 8 */
+{
+    "name" : "Farecast",
+    "funder" : "greylock",
+    "amount" : 12100000,
+    "year" : 2007
+}
 
