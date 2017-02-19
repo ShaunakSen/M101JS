@@ -3874,3 +3874,206 @@ op:
     "year" : 2007
 }
 
+
+
+Array Expressions
+____________________
+
+We will look at how to use array expressions in project stages
+
+$filter: Selects subset of elements in array based on filter criteria that will be passed to next stage
+
+
+db.companies.aggregate([
+    {$match: {"funding_rounds.investments.financial_org.permalink": "greylock"}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            founded_year: 1,
+            rounds: {
+                    $filter: {
+                            input: "$funding_rounds",
+                            as: "round",
+                            cond: {$gte: ["$$round.raised_amount", 10000000]}
+                        }
+                }
+        }},
+    {$match: {"rounds.investments.financial_org.permalink": "greylock"}}
+])
+
+
+Look at the rounds field..
+
+What we are doing is using filter
+filter needs 3 params
+
+input: array.. we can provide array literals also
+here we are using funding_rounds array
+
+as: name we like to use for funding_rounds array throughout rest of our filter expression
+
+cond: used to select subset of elements of array
+
+$$: var within expression we are working in. as clause defines var round.. $$ uses this
+
+What docs will be produced at end of $project?
+
+we will have docs having name, funded_year and rounds field
+
+rounds will be array comprising elements that match condn
+
+
+$arrayElemAt:
+
+we want to simply pull out 1st and last round
+
+db.companies.aggregate([
+    {$match: {"founded_year": 2010}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            founded_year: 1,
+            first_round: { $arrayElemAt: ["$funding_rounds", 0] },
+            last_round: { $arrayElemAt: ["$funding_rounds", -1] }
+        }}
+])
+
+
+We specify an array as value for $arrayElemAt operator
+1st elem: array that $arrayElemAt should work with
+2nd elem: index that we wouldlike to see
+
+Now we might not know how many elems there are in array
+
+-1: last elem
+-2: 2nd last
+...
+
+sample op:
+
+{
+    "name" : "Needium",
+    "founded_year" : 2010,
+    "first_round" : {
+        "id" : 926,
+        "round_code" : "seed",
+        "source_url" : "http://www.praized.com/blog/about/web-20-startup-praized-media-inc-secures-1000000-in-seed-funding/",
+        "source_description" : null,
+        "raised_amount" : 1000000,
+        "raised_currency_code" : "USD",
+        "funded_year" : 2007,
+        "funded_month" : 9,
+        "funded_day" : 1,
+        "investments" : [
+            {
+                "company" : null,
+                "financial_org" : {
+                    "name" : "Garage Technology Ventures Canada",
+                    "permalink" : "garage-technology-ventures-canada"
+                },
+                "person" : null
+            }
+        ]
+    },
+    "last_round" : {
+        "id" : 926,
+        "round_code" : "seed",
+        "source_url" : "http://www.praized.com/blog/about/web-20-startup-praized-media-inc-secures-1000000-in-seed-funding/",
+        "source_description" : null,
+        "raised_amount" : 1000000,
+        "raised_currency_code" : "USD",
+        "funded_year" : 2007,
+        "funded_month" : 9,
+        "funded_day" : 1,
+        "investments" : [
+            {
+                "company" : null,
+                "financial_org" : {
+                    "name" : "Garage Technology Ventures Canada",
+                    "permalink" : "garage-technology-ventures-canada"
+                },
+                "person" : null
+            }
+        ]
+    }
+}
+
+
+$slice: it returns multiple elems from array in sequence beginning with a particular index
+
+db.companies.aggregate([
+    {$match: {"founded_year": 2010}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            founded_year: 1,
+            early_rounds: { $slice: ["$funding_rounds", 1, 3] }
+        }}
+])
+
+
+early_rounds will contain items of index 1 and the next 3 elements from the array
+
+so we skip the first one and get the next 3
+
+We can use slice to do the same thing as $elemAt
+
+db.companies.aggregate([
+    {$match: {"founded_year": 2010}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            founded_year: 1,
+            first_round: { $slice: ["$funding_rounds", 1] },
+            last_round: { $slice: ["$funding_rounds", -1] }
+        }}
+])
+
+
+Instead of 3 elems to $slice we are specifying just 2
+
+
+$size:
+
+returns size of array
+
+db.companies.aggregate([
+    {$match: {"founded_year": 2010}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            founded_year: 1,
+            total_rounds: { $size: "$funding_rounds" }
+        }}
+])
+
+Sample op:
+
+{
+    "name" : "GENWI",
+    "founded_year" : 2010,
+    "total_rounds" : 3
+}
+
+/* 2 */
+{
+    "name" : "Needium",
+    "founded_year" : 2010,
+    "total_rounds" : 1
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
