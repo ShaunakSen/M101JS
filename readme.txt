@@ -4063,6 +4063,100 @@ Sample op:
 }
 
 
+-- for more info on array expressions check out the documentation
+
+
+Accumulators
+____________________________
+
+They are types of expressions only but one that we think of in their own class coz accumulators involve
+calculating values from fields of multiple docs
+
+$sum , $avg
+$first, $last: 1st and last values in array
+$max, $min
+$push, $addToSet
+
+prior to mongodb 3.2 accumulators were only available in the $group stage
+But now we can access a subset of accumulators in the $project stage as well
+
+diff: acc in project stages must operate on arrays within single doc and in group stage they can act on values across
+multiple docs
+
+Using accumulators in project stages:
+
+
+db.companies.aggregate([
+    {$match: {"funding_rounds": {$exists: true, $ne: []}}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            largest_round: { $max: "$funding_rounds.raised_amount" }
+        }}
+])
+
+
+Sample op:
+
+/* 1 */
+{
+    "name" : "Wetpaint",
+    "largest_round" : 25000000
+}
+
+/* 2 */
+{
+    "name" : "Digg",
+    "largest_round" : 28700000
+}
+
+/* 3 */
+{
+    "name" : "Facebook",
+    "largest_round" : 1500000000
+}
+
+funding_round is an array and raised_amount is found in multiple elements of that array,
+$funding_rounds.raised_amount evaluates to an array
+
+$max finds max from that array
+
+
+db.companies.aggregate([
+    {$match: {"funding_rounds": {$exists: true, $ne: []}}},
+    {$project: {
+            _id: 0,
+            name: 1,
+            total_fundings: {$sum: "$funding_rounds.raised_amount"}
+        }}
+])
+
+
+/* 1 */
+{
+    "name" : "Wetpaint",
+    "total_fundings" : 39750000
+}
+
+/* 2 */
+{
+    "name" : "Digg",
+    "total_fundings" : 45000000
+}
+
+/* 3 */
+{
+    "name" : "Facebook",
+    "total_fundings" : NumberLong(2425700000)
+}
+
+
+
+
+
+
+
+
 
 
 
