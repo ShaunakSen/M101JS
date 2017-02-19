@@ -4151,21 +4151,219 @@ db.companies.aggregate([
 }
 
 
+Introduction to $group
+_____________________________
+
+
+$group is similar to SQL GROUP BY
+
+In $group stage we can aggregate together values from multiple docs and perform some type of aggregate
+operation on them like calculating average
+
+
+db.companies.aggregate([
+    { $group: {
+            _id: { founded_year: "$founded_year" },
+            average_number_of_employees: { $avg: "$number_of_employees" }
+        } },
+    { $sort: { average_number_of_employees: -1 } }
+])
+
+
+Sample op:
+
+/* 1 */
+{
+    "_id" : {
+        "founded_year" : 1847
+    },
+    "average_number_of_employees" : 405000.0
+}
+
+/* 2 */
+{
+    "_id" : {
+        "founded_year" : 1896
+    },
+    "average_number_of_employees" : 388000.0
+}
+
+/* 3 */
+{
+    "_id" : {
+        "founded_year" : 1933
+    },
+    "average_number_of_employees" : 320000.0
+}
+
+/* 4 */
+{
+    "_id" : {
+        "founded_year" : 1915
+    },
+    "average_number_of_employees" : 186000.0
+}
+
+/* 5 */
+{
+    "_id" : {
+        "founded_year" : 1903
+    },
+    "average_number_of_employees" : 171000.0
+}
+
+
+here we are aggregating all companies based on year in which it was founded
+
+Fundamental to the $group stage is the _id field
+_id is how we tune what the group stage uses to organize the docs
+
+
+$group is 1st stage so all docs are passed to it
+The stage will take all docs that have same value for founded_year and treat them as the same group
+
+
+average_number_of_employees: { $avg: "$number_of_employees" }:  Calculates ave of no of employees for all docs
+with same founded_year
+
+We can see from the data that most companies with large no of employees are quite old
+
+But there is one deviation that we notice:
+
+{ "_id" : { "founded_year" : 2001 }, "average_number_of_employees" : 1271.5280898876404 }
+
+
+To analyze this further
+
+db.companies.aggregate([
+    { $match: {founded_year: 2001} },
+    { $project: {_id:0, name:1, number_of_employees:1}} ,
+    {$sort: {number_of_employees: -1}}
+])
+
+
+{ "name" : "Accenture", "number_of_employees" : 205000 }
+{ "name" : "MetaCarta", "number_of_employees" : 99999 }
+{ "name" : "Liberty League International", "number_of_employees" : 8000 }
+{ "name" : "Sogeti USA", "number_of_employees" : 2500 }
+{ "name" : "AppLabs", "number_of_employees" : 2000 }
+{ "name" : "Vonage", "number_of_employees" : 1500 }
+{ "name" : "SuccessFactors", "number_of_employees" : 1200 }
+{ "name" : "SK Net Service Company Ltd", "number_of_employees" : 1000 }
+{ "name" : "Sitecore", "number_of_employees" : 600 }
+{ "name" : "Acquity Group", "number_of_employees" : 500 }
+{ "name" : "Clear2Pay", "number_of_employees" : 450 }
+{ "name" : "Rally Software", "number_of_employees" : 430 }
+{ "name" : "RigNet", "number_of_employees" : 410 }
+{ "name" : "Telogis", "number_of_employees" : 400 }
+{ "name" : "AtTask", "number_of_employees" : 350 }
+{ "name" : "Infusionsoft", "number_of_employees" : 350 }
+{ "name" : "Tobii Technology", "number_of_employees" : 350 }
+{ "name" : "ChannelAdvisor", "number_of_employees" : 300 }
+{ "name" : "Skyscanner", "number_of_employees" : 300 }
+{ "name" : "Propertyware", "number_of_employees" : 300 }
+
+
+So we can see bcoz of Accenture and MetaCarta this ave is so much
 
 
 
+Now we want to see people who have been associated with a large no of companies
+
+There is a relationships field that helps us do this
+
+Sample doc:
+
+{
+    "_id" : ObjectId("52cdef7c4bab8bd675297d8a"),
+    "name" : "Wetpaint",
+    "relationships" : [
+        {
+            "is_past" : false,
+            "title" : "Co-Founder and VP, Social and Audience Development",
+            "person" : {
+                "first_name" : "Michael",
+                "last_name" : "Howell",
+                "permalink" : "michael-howell"
+            }
+        },
+        {
+            "is_past" : false,
+            "title" : "Co-Founder/CEO/Board of Directors",
+            "person" : {
+                "first_name" : "Ben",
+                "last_name" : "Elowitz",
+                "permalink" : "ben-elowitz"
+            }
+        }
+    ]
+}
+
+Query:
+
+db.companies.aggregate([
+    { $match: {"relationships.person": {$ne: null}} },
+    { $project: { relationships:1, _id: 0 } },
+    { $unwind: "$relationships" },
+    { $group: { _id: "$relationships.person", count: { $sum:1 } } },
+    { $sort: { count: -1 } }
+])
 
 
+we are matching where relationships.person is not null
+then we project out relationships
+then we unwind relationships so that every relationship in relationships array comes through to next stage
+as a separate doc
+group: we use person to aggregate. here we are not using $avg accumulator.. we are using $sum accumulator
+then we sort
 
+Sample op:
 
+/* 1 */
+{
+    "_id" : {
+        "first_name" : "Tim",
+        "last_name" : "Hanlon",
+        "permalink" : "tim-hanlon"
+    },
+    "count" : 28.0
+}
 
+/* 2 */
+{
+    "_id" : {
+        "first_name" : "David S.",
+        "last_name" : "Rose",
+        "permalink" : "david-s-rose"
+    },
+    "count" : 24.0
+}
 
+Acc to results Tim hanlon has been associated with 28 companies
+But this is not really true.. why?
 
+our query was:
+db.companies.aggregate([
+    { $match: {"relationships.person": {$ne: null}} },
+    { $project: { relationships:1, _id: 0 } },
+    { $unwind: "$relationships" },
+    { $group: { _id: "$relationships.person", count: { $sum:1 } } },
+    { $sort: { count: -1 } }
+])
 
+Tim hanlon appeared in 28 docs that were passed to the $group stage - we know this
 
+But what docs were passed through to this group stage?
+They were all relationships for all companies in our collection
 
+But individuals may appear more than once in relationships in a single company
+Tim hanlon may be CFO of company Facebook but he might also have been CTO of facebook earlier
 
+Note in doc there is a field is_past for this
 
+So Tim hanlon occurs 28 times in relationship docs throughout the companies in our collection
+
+We cant say by this query how many unique companies he was associated with
 
 
 
