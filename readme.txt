@@ -4671,15 +4671,54 @@ Sample op doc:
 
 
 
+db.grades.aggregate([
+    {$unwind: "$scores"},
+    {$match: { "scores.type": { $ne: "quiz"} }},
+    {$group: {
+            _id: {
+                    class_id: "$class_id"
+                },
+            scores: {
+                    $avg: "$scores.score"
+                }
+        }},
+    {$sort: {scores: -1}}
+])
 
 
 
+db.companies.aggregate([
+    {$match: {"founded_year": 2004}},
+    {$match: {"funding_rounds.4" : {$exists : true} }},
+    {$unwind: "$funding_rounds"},
+    {$project: {
+        name: 1,
+        funding_rounds:1
+        }},
+    {$group: {
+            _id: "$name",
+            ave: {
+                    $avg: "$funding_rounds.raised_amount"
+                }
+        }},
+    {$sort: {ave:1}}
+])
 
 
 
-
-
-
+db.companies.aggregate( [
+    { $match: { "relationships.person": { $ne: null } } },
+    { $project: { relationships: 1, _id: 0, name:1 } },
+    { $unwind: "$relationships" },
+    { $group: {
+        _id: "$relationships.person",
+        count: { $addToSet: "$name" }
+    } },
+    {
+        $project: {total_companies: { $size: "$count" }}
+    },
+    {$match: {"_id.permalink": "eric-di-benedetto"}}
+] )
 
 
 
