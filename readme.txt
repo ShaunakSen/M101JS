@@ -4366,6 +4366,178 @@ So Tim hanlon occurs 28 times in relationship docs throughout the companies in o
 We cant say by this query how many unique companies he was associated with
 
 
+_id in Group Stages
+_____________________________
+
+
+We want a list of companies grouped by founded_year where founded_year > 2010
+
+db.companies.aggregate([
+    { $match: { founded_year: { $gte: 2010 } } },
+    { $group: { _id: { founded_year: "$founded_year" }, companies: { $push: "$name" } } },
+    { $sort: {  "_id.founded_year": 1  } }
+])
+
+
+Sample op:
+
+{
+    "_id" : {
+        "founded_year" : 2013
+    },
+    "companies" : [
+        "Fixya",
+        "Wamba",
+        "Advaliant",
+        "Fluc",
+        "iBazar",
+        "Gimigo",
+        "SEOGroup",
+        "Clowdy",
+        "WhosCall",
+        "Pikk",
+        "Tongxue",
+        "Shopseen",
+        "VistaGen Therapeutics"
+    ]
+}
+
+
+Here we used _id as :
+{ _id: { founded_year: "$founded_year" }
+
+Had we simply used _id: "$founded_year"
+
+db.companies.aggregate([
+    { $match: { founded_year: { $gte: 2010 } } },
+    { $group: { _id: "$founded_year", companies: { $push: "$name" } } },
+    { $sort: {  "_id": 1  } }
+])
+
+
+
+Now op:
+
+{
+    "_id" : 2013,
+    "companies" : [
+        "Fixya",
+        "Wamba",
+        "Advaliant",
+        "Fluc",
+        "iBazar",
+        "Gimigo",
+        "SEOGroup",
+        "Clowdy",
+        "WhosCall",
+        "Pikk",
+        "Tongxue",
+        "Shopseen",
+        "VistaGen Therapeutics"
+    ]
+}
+
+
+Note changes in query as well in op doc structure for _id
+
+Note now in op doc "_id" : 2013
+so it is not really specific what _id actually means so there nay be confusion
+
+So it is better to make _id a doc rather than a single value
+
+Another eg:
+
+We may want to group based on multiple fields say founded_year and category_code
+
+
+db.companies.aggregate([
+    { $match: { founded_year: { $gte: 2010 } } },
+    { $group: { _id: { founded_year: "$founded_year", category_code: "$category_code" }, companies: { $push: "$name" } } },
+    { $sort: {  "_id.founded_year": 1  } }
+])
+
+Sample op:
+
+{
+    "_id" : {
+        "founded_year" : 2013,
+        "category_code" : "mobile"
+    },
+    "companies" : [
+        "WhosCall"
+    ]
+}
+
+/* 50 */
+{
+    "_id" : {
+        "founded_year" : 2013,
+        "category_code" : "analytics"
+    },
+    "companies" : [
+        "Gimigo"
+    ]
+}
+
+
+Group docs based on year in which they did ipo
+
+Now ipo field looks like:
+
+ "ipo" : {
+        "valuation_amount" : null,
+        "valuation_currency_code" : "USD",
+        "pub_year" : 1998,
+        "pub_month" : 10,
+        "pub_day" : 2,
+        "stock_symbol" : "NASDAQ:EBAY"
+}
+
+
+Query:
+
+
+db.companies.aggregate([
+    { $group: {
+            _id: { ipo_year: "$ipo.pub_year" },
+            compamies: { $push: "$name" }
+        } },
+    { $sort: { "_id.ipo_year": 1 } }
+])
+
+
+Sample op:
+
+{
+    "_id" : {
+        "ipo_year" : 1993
+    },
+    "compamies" : [
+        "IAC",
+        "Intuit",
+        "Alcatel-Lucent",
+        "Simon Property Group",
+        "Microchip Technologies",
+        "Cree"
+    ]
+}
+
+Note: here we are also using $push
+$push: As the group stage sees addnl values, $push adds these values to a running array
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
