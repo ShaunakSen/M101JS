@@ -4527,6 +4527,150 @@ $push: As the group stage sees addnl values, $push adds these values to a runnin
 
 
 
+$group vs $project
+____________________
+
+
+Some accumulators are available in group stage but not in project
+
+
+Example:
+
+Query:
+
+db.companies.aggregate([
+    {$match: { funding_rounds: {$ne: []} }},
+    {$unwind: "$funding_rounds"},
+    {$sort: {
+            "funding_rounds.funded_year": 1,
+            "funding_rounds.funded_month": 1,
+            "funding_rounds.funded_day": 1
+        }},
+    {$group: {
+            _id: {company: "$name"},
+            funding: {
+                    $push: {
+                            amount: "$funding_rounds.raised_amount",
+                            year: "$funding_rounds.funded_year"
+                        }
+                }
+        }}
+])
+
+What we are doing: we are doing a match on fundin_rounds
+we unwind funding_rounds so we will get one doc for each elem of funding_rounds array for every company
+then we sort funding_rounds in ASC order
+then we group the funding_rounds by name.. Since the op is already sorted we get a sorted array of funding_rounds
+of every company. We are using $push to build this array
+
+
+Sample op:
+
+
+{
+        "_id" : {
+                "company" : "Birst"
+        },
+        "funding" : [
+                {
+                        "amount" : 26000000,
+                        "year" : 2012
+                },
+                {
+                        "amount" : 38000000,
+                        "year" : 2013
+                }
+        ]
+}
+
+
+For companies with multiple funding rounds we are seeing a funding array containing amt and year in sorted order
+
+here we are pushing docs built on raised_amount and funded_year
+
+now $push is available in group but not in project stages
+Why?group stages are designed to take a sequence of docs and accumulate values based on that stream of docs
+
+$project works with one doc at a time.. so we can calculate ave on an array within a doc in project
+But here we are seeing docs and pushing on a value .. this cant be done in project
+
+Another eg:
+
+db.companies.aggregate([
+    {$match: { funding_rounds: {$ne: []} }},
+    {$unwind: "$funding_rounds"},
+    {$sort: {
+            "funding_rounds.funded_year": 1,
+            "funding_rounds.funded_month": 1,
+            "funding_rounds.funded_day": 1
+        }},
+    {$group: {
+            _id: {company: "$name"},
+            first_round: {$first: "$funding_rounds"},
+            last_round: {$last: "$funding_rounds"},
+            num_rounds: {$sum:1},
+            total_raised: {$sum: "$funding_rounds.raised_amount"}
+        }},
+    {$project: {
+            company: "$_id.company",
+            first_round: {
+                    amount: "$first_round.raised_amount",
+                    article: "$first_round.source_url",
+                    year: "$first_round.funded_year"
+                },
+            last_round: {
+                    amount: "$last_round.raised_amount",
+                    article: "$last_round.source_url",
+                    year: "$last_round.funded_year"
+                },
+            num_rounds: 1,
+            total_raised: 1
+        }},
+    {$sort: {total_raised: -1}}
+])
+
+
+
+This looks very complex but is not so..
+Let us work through it
+
+$first and $last: takes 1st and last values and makes it the value of the key it is associated to
+As with $push we cant use $first and $last in project stages bcoz project stages are not designed to accumulate
+values based on multiple docs streaming through them. They reshape docs only
+
+num_rounds: {$sum:1}: count no of docs that are grouped under given _id value.. here we are
+counting by 1 but we can count by nay no
+
+The project stage is quite complex.. But we are simply making op cleaner
+
+Here we are creating a summary
+
+
+Sample op doc:
+
+{
+    "_id" : {
+        "company" : "Clearwire"
+    },
+    "first_round" : {
+        "amount" : NumberLong(3200000000),
+        "article" : "http://www.techcrunch.com/2008/05/06/32-billion-wimax-deal-goes-through-take-cover/",
+        "year" : 2008
+    },
+    "last_round" : {
+        "amount" : 80000000,
+        "article" : "http://venturebeat.com/2013/02/27/clearwire-sprint-80m-dish/",
+        "year" : 2013
+    },
+    "num_rounds" : 4.0,
+    "total_raised" : NumberLong(5700000000),
+    "company" : "Clearwire"
+}
+
+
+
+
+
 
 
 
