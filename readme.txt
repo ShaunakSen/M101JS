@@ -4669,7 +4669,10 @@ Sample op doc:
 
 
 
+homeworks
+____________
 
+6.1
 
 db.grades.aggregate([
     {$unwind: "$scores"},
@@ -4685,7 +4688,7 @@ db.grades.aggregate([
     {$sort: {scores: -1}}
 ])
 
-
+6.2
 
 db.companies.aggregate([
     {$match: {"founded_year": 2004}},
@@ -4704,7 +4707,7 @@ db.companies.aggregate([
     {$sort: {ave:1}}
 ])
 
-
+6.3
 
 db.companies.aggregate( [
     { $match: { "relationships.person": { $ne: null } } },
@@ -4719,6 +4722,89 @@ db.companies.aggregate( [
     },
     {$match: {"_id.permalink": "eric-di-benedetto"}}
 ] )
+
+
+
+Week - 7
+_________________________________________________
+
+
+Write Concern:
+_________________
+
+
+We want to make our writes persistent
+
+Refer to week-7/img1.png
+
+
+Say our app is in pyMongo
+Our app talks to db server
+
+Server has:
+CPU
+Memory
+Persistent Disk
+
+Now Db writes to Memory
+
+Memory has:
+->Cache of pages that are periodically written and read from disk
+->Journal: a log of every single thing that a db processes..
+
+Now journal is in memory.. So when the data of journal gets written to disk that is when we consider it persistent
+
+
+Say we run update()
+pyMongo connects to db server via TCP connection
+server processes update() and writes it to memory pages
+But it may not write to disk for a while
+also it writes the update in journal
+
+
+Now in these cases we wait for response but we dont wait for journal to be written to disk
+
+w = 1(default): wait for the server to respond
+
+j = false(default): dont wait for journal to be written to disk
+
+Implication: When u do an update or insert u r really doing an operation in memory, not necessarily to disk
+Periodically it gets written to disk
+
+Window of vulnerability:  Data has been written to server memory but has not been written to disk
+and server crashes.. So we lose data..
+
+We let app decide what to use
+
+In some apps where lots of writes we want to make our app fast. So we cant wait for journal to be written to disk
+every time as it will be slow
+
+w and j together are called write concerns
+
+w=1, j= false: fast but there is a small Window of vulnerability
+w=1, j=true: much slower.. No Window of vulnerability
+w=0: unacknowledged write.. Not recommended
+
+
+
+w=1, j=true: writes have been written to journal.. if server crashes, then even though the pages may not be written to
+disk yet, on recovery, the server can look on the journal in disk and recreate the writes
+So very safe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
