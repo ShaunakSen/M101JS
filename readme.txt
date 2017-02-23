@@ -4791,6 +4791,83 @@ w=1, j=true: writes have been written to journal.. if server crashes, then even 
 disk yet, on recovery, the server can look on the journal in disk and recreate the writes
 So very safe
 
+Network Errors
+______________________
+
+
+say we have j=true and w=1
+so we expect that all our updates and insert work as expected
+
+
+But say we do an update() or insert()
+If we get an affirmative response then we know that it definitely happened
+But if we dont get back response, probably it didnt happen.. But it might have happened
+There amy have been a nw error so that we did not receive the response
+
+For an insert() it is possible to guard against this
+if u do an insert() and get back a nw error we can d it again with same _id field
+so we will get a duplicate key error if the doc had already been inserted
+
+update() with $inc: here if nw error occurs we dont know if $inc occurred
+
+Its very rare to get back a nw error
+
+If we really want to avoid it, we will have to turn all updates into inserts
+
+
+Replication
+________________________
+
+Refer to week-7/img2.png
+
+
+We have talked about how to get durability on a single node by waiting for write to go to the log
+
+How do we get Availability and Fault Tolerance?
+- if a node goes down we still should be able to use the system
+If primary node goes down say, there is a fire, how do we make sure we dont lose our data
+
+Soln: Replication
+
+Replica set : set of mongo nodes (say 3). They act together and mirror each other in terms of data.. Any
+one is primary and rest are secondary. But this is dynamic. Data is written to primary and this data is asynchronously
+replicated to the secondary nodes
+
+App and drivers stay connected to primary. They write to only primary
+If primary goes down the secondary nodes holds an election(Election algo) to select a new primary
+
+Now app would reconnect to new primary for writes
+
+
+Now the node ie the prev primary which failed might come back up. This will now act as a secondary
+
+Minm no of nodes: 3
+
+
+Types of Replica Set Nodes
+__________________________________
+
+1. Regular: can become primary or secondary
+2. Arbiter: exists just for voting purposes.
+3. Delayed: disaster recovery node. It can be hr or 2 hrs or whatever behind regular nodes. Can participate
+in voting, but cant become primary node. Its priority = 0. Priority(P)=0 => it cant be elected to form a primary node
+we can make priority of any node to be 0 if we want
+4. Hidden: used for analytics. Cant be used as primary node. P=0. Can participate in voting
+
+In general, very node has 1 vote
+
+Write Consistency
+________________________
+
+In replication within mongodb there is only a single primary at a given time
+In default configuration writes and reads go to primary
+
+Writes HAVE to go to primary.. So we get STRONG consistency.. So we dont read stale data
+
+But Reads may go to Secondary.. But then we may read stale data from secondaries relative to what was written on
+the Primary. The lag bw any 2 nodes is not guaranteed as the replication is asynchronous
+
+When failover occurs during that time there is no primary. So no writes can be issued
 
 
 
