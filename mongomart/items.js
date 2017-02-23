@@ -121,9 +121,9 @@ function ItemDAO(database) {
 
         database.collection('item').aggregate([
             {$match: category!="All"? {category: category}: {}},
+            {$sort: {_id:1}},
             {$skip: itemsToSkip},
-            {$limit: itemsPerPage},
-            {$sort: {_id:1}}
+            {$limit: itemsPerPage}
         ]).toArray(function (err, pageItems) {
             assert.equal(err, null);
             // console.log(pageItems);
@@ -204,19 +204,41 @@ function ItemDAO(database) {
          *
          */
 
-        var item = this.createDummyItem();
+        // CREATING THE INDEX
+
+        /*db.item.createIndex({
+            title: "text",
+            slogan: "text",
+            description: "text"
+        })*/
+
+        var itemsToSkip = itemsPerPage * page;
+
+        database.collection('item').aggregate([
+            {$match: {$text: {$search: query}}},
+            {$sort: {_id:1}},
+            {$skip: itemsToSkip},
+            {$limit: itemsPerPage}
+            
+        ]).toArray(function (err, pageItems) {
+            assert.equal(err, null);
+            // console.log(pageItems);
+            callback(pageItems);
+        });
+
+        /*var item = this.createDummyItem();
         var items = [];
         for (var i=0; i<5; i++) {
             items.push(item);
-        }
+        }*/
 
         // TODO-lab2A Replace all code above (in this method).
 
         // TODO Include the following line in the appropriate
         // place within your code to pass the items for the selected page
         // of search results to the callback.
-        callback(items);
-    }
+        // callback(items);
+    };
 
 
     this.getNumSearchItems = function(query, callback) {
@@ -237,8 +259,14 @@ function ItemDAO(database) {
         * simply do this in the mongo shell.
         */
 
-        callback(numItems);
-    }
+        database.collection('item').find({$text: {$search: query}}).toArray(function (err, searchedItems) {
+            assert.equal(err, null);
+            numItems = searchedItems.length;
+            callback(numItems);
+        });
+
+        // callback(numItems);
+    };
 
 
     this.getItem = function(itemId, callback) {
@@ -262,7 +290,7 @@ function ItemDAO(database) {
         // place within your code to pass the matching item
         // to the callback.
         callback(item);
-    }
+    };
 
 
     this.getRelatedItems = function(callback) {
