@@ -120,7 +120,7 @@ function ItemDAO(database) {
         var itemsToSkip = itemsPerPage * page;
 
         database.collection('item').aggregate([
-            {$match: {category: category}},
+            {$match: category!="All"? {category: category}: {}},
             {$skip: itemsToSkip},
             {$limit: itemsPerPage},
             {$sort: {_id:1}}
@@ -142,7 +142,7 @@ function ItemDAO(database) {
         // place within your code to pass the items for the selected page
         // to the callback.
         // callback(pageItems);
-    }
+    };
 
 
     this.getNumItems = function(category, callback) {
@@ -165,10 +165,16 @@ function ItemDAO(database) {
          *
          */
 
+        database.collection('item').find(category!="All"?{category: category}:{}).toArray(function (err, categoryItems) {
+            assert.equal(err, null);
+            numItems = categoryItems.length;
+            callback(numItems);
+        });
+
          // TODO Include the following line in the appropriate
          // place within your code to pass the count to the callback.
-        callback(numItems);
-    }
+        // callback(numItems);
+    };
 
 
     this.searchItems = function(query, page, itemsPerPage, callback) {
