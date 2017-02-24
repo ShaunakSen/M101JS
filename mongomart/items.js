@@ -369,7 +369,7 @@ function ItemDAO(database) {
         // place within your code to pass the updated doc to the
         // callback.
         // callback(doc);
-    }
+    };
 
 
     this.createDummyItem = function() {
