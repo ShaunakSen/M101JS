@@ -78,7 +78,7 @@ function ItemDAO(database) {
                 num: allCount
             });
             categories = categoryDocs;
-            console.log("Categories:", categories);
+            // console.log("Categories:", categories);
             callback(categories);
         });
         
@@ -326,22 +326,49 @@ function ItemDAO(database) {
          *
          */
 
-        var reviewDoc = {
-            name: name,
-            comment: comment,
-            stars: stars,
-            date: Date.now()
-        }
+        database.collection('item').find({_id: itemId}).toArray(function (err, foundItem) {
+            assert.equal(err, null);
+
+            var reviewDoc = {
+                name: name,
+                comment: comment,
+                stars: stars,
+                date: Date.now()
+            };
+
+            var allReviews;
+            // console.log("Found item:", foundItem);
+
+            if(foundItem[0].hasOwnProperty("reviews")){
+                allReviews = foundItem[0].reviews;
+            } else {
+                allReviews = [];
+            }
+
+
+
+            // console.log("All reviews: ", allReviews);
+
+            allReviews.push(reviewDoc);
+            database.collection('item').updateOne({_id: itemId}, {$set: {"reviews": allReviews}}, function (err, updatedDoc) {
+                assert.equal(err, null);
+
+                // console.log("Updated doc is:", updatedDoc);
+                callback(updatedDoc);
+            })
+        });
+
+
 
         // TODO replace the following two lines with your code that will
         // update the document with a new review.
-        var doc = this.createDummyItem();
-        doc.reviews = [reviewDoc];
+        // var doc = this.createDummyItem();
+        // doc.reviews = [reviewDoc];
 
         // TODO Include the following line in the appropriate
         // place within your code to pass the updated doc to the
         // callback.
-        callback(doc);
+        // callback(doc);
     }
 
 
