@@ -4869,8 +4869,48 @@ the Primary. The lag bw any 2 nodes is not guaranteed as the replication is asyn
 
 When failover occurs during that time there is no primary. So no writes can be issued
 
+Creating a Replica Set
+________________________
 
 
+Setup the replica sets on windows
+
+So we have 3 servers running on ports 27107, 27018 and 27019
+
+rs.status(): gives replica set status
+
+27018 one is our primary
+
+mongo --port 27107: this will get connected to secondary
+
+mongo --port 27109: this will also get connected to secondary
+
+
+Connect to PRIMARY
+
+write something to a doc
+db.people.insert({name: "Mini"})
+
+it works
+
+But if we go to a Secondary and do:
+
+db.people.find()
+it shows error as we cant query secondary by default
+
+rs.slaveOk(): allows this
+
+db.people.find(): now works
+
+Similarly: mongo --port 27017
+rs.slaveOk()
+db.people.find()
+
+We get the data!
+
+
+Replica Set Internals
+______________________________
 
 
 
